@@ -1,7 +1,7 @@
 import sys
 import pygame as pg
 
-WIDTH = 1024
+WIDTH = 1600
 HEIGHT = 1024
 
 class Player(pg.sprite.Sprite):
@@ -62,13 +62,14 @@ def main():
 
     player = Player((WIDTH // 2, HEIGHT - 200))
     blocks = pg.sprite.Group()
-    for i in range(-1024, 1025):
+    for i in range(-WIDTH, WIDTH):
         # if 1 <= i % 32 <= 16:
         #     continue
         blocks.add(Block((i * Block.size[0], HEIGHT)))
-    for i in range(100):
+    for i in range(1000):
         for j in range(10):
-            blocks.add(Block((i * 1000, WIDTH - j * Block.size[1])))
+            blocks.add(Block((i * 1000, HEIGHT - j * Block.size[1])))
+            blocks.add(Block((i * 1000 + Block.size[0], HEIGHT - j * Block.size[1])))
     for b in blocks:
         obstacle_rect_lst.append(b.rect)
 
