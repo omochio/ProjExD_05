@@ -52,17 +52,17 @@ def main():
     bg_img = pg.Surface((WIDTH, HEIGHT))
     bg_img.fill((0, 0, 0))
 
-    all_rect_lst = []
+    obstacle_rect_lst = []
 
     player = Player((500, HEIGHT - 50))
-    all_rect_lst.append(player.rect)
     blocks = pg.sprite.Group()
-    for i in range(256):
+    for i in range(-1024, 1025):
         blocks.add(Block((i * Block.size[0], HEIGHT)))
-    for i in range(10):
-        blocks.add(Block((WIDTH // 2, WIDTH - i * Block.size[1])))
+    for i in range(100):
+        for j in range(10):
+            blocks.add(Block((i * 1000, WIDTH - j * Block.size[1])))
     for b in blocks:
-        all_rect_lst.append(b.rect)
+        obstacle_rect_lst.append(b.rect)
 
     tmr = 0
     clock = pg.time.Clock()
@@ -71,7 +71,6 @@ def main():
             if event.type == pg.QUIT:
                 return 0
         
-
         key_lst = pg.key.get_pressed()
 
         player.update(key_lst)
@@ -85,6 +84,17 @@ def main():
                 if player.rect.bottom > b.rect.top:
                     player.rect.bottom = b.rect.top
                     player.isGround = True
+
+        # スクロール
+        if player.rect.centerx > WIDTH // 2:
+            player.rect.centerx = WIDTH // 2
+            for r in obstacle_rect_lst:
+                r.x -= WIDTH // 2 - player.rect.x
+        elif player.rect.centerx < WIDTH // 2:
+            player.rect.centerx = WIDTH // 2
+            for r in obstacle_rect_lst:
+                r.x += WIDTH // 2 - player.rect.x
+
 
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
