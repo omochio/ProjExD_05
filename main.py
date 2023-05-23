@@ -21,20 +21,23 @@ class Player(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = pos
         self.gravity_vel = 5
+        self.walk_vel = 20
         self.jump_power = 256
         self.isGround = False
+        self.vel = [0, 0]
 
     def update(self, key_lst: dict):
+        self.vel = [0, 0]
         for d in __class__.move_dict:
             if key_lst[d]:
-                self.rect.x += self.move_dict[d][0] * 3
+                self.vel[0] += self.move_dict[d][0] * self.walk_vel
                 if self.isGround:
-                    self.rect.y += self.move_dict[d][1] * self.jump_power
+                    self.rect.centery += self.move_dict[d][1] * self.jump_power
                     if self.move_dict[d][1] < 0:
                         self.isGround = False
 
         if not self.isGround:
-            self.rect.y += self.gravity_vel
+            self.rect.centery += self.gravity_vel
 
 class Block(pg.sprite.Sprite):
     size = (32, 32)
@@ -54,9 +57,11 @@ def main():
 
     obstacle_rect_lst = []
 
-    player = Player((500, HEIGHT - 50))
+    player = Player((WIDTH // 2, HEIGHT - 50))
     blocks = pg.sprite.Group()
     for i in range(-1024, 1025):
+        if 1 <= i % 32 <= 16:
+            continue
         blocks.add(Block((i * Block.size[0], HEIGHT)))
     for i in range(100):
         for j in range(10):
@@ -86,15 +91,8 @@ def main():
                     player.isGround = True
 
         # スクロール
-        if player.rect.centerx > WIDTH // 2:
-            player.rect.centerx = WIDTH // 2
-            for r in obstacle_rect_lst:
-                r.x -= WIDTH // 2 - player.rect.x
-        elif player.rect.centerx < WIDTH // 2:
-            player.rect.centerx = WIDTH // 2
-            for r in obstacle_rect_lst:
-                r.x += WIDTH // 2 - player.rect.x
-
+        for r in obstacle_rect_lst:
+            r.x -= player.vel[0]
 
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
