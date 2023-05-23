@@ -23,20 +23,23 @@ class Player(pg.sprite.Sprite):
         self.gravity_vel = 5
         self.walk_vel = 20
         self.jump_power = 256
-        self.isGround = False
+        self.is_ground = False
         self.vel = [0, 0]
+        self.is_locked_x = False
 
     def update(self, key_lst: dict):
         self.vel = [0, 0]
         for d in __class__.move_dict:
             if key_lst[d]:
-                self.vel[0] += self.move_dict[d][0] * self.walk_vel
-                if self.isGround:
+                if not self.is_locked_x:
+                    self.vel[0] += self.move_dict[d][0] * self.walk_vel
+                if self.is_ground:
                     self.rect.centery += self.move_dict[d][1] * self.jump_power
                     if self.move_dict[d][1] < 0:
-                        self.isGround = False
+                        self.is_ground = False
 
-        if not self.isGround:
+        if not self.is_ground:
+            self.vel[1] += self.gravity_vel
             self.rect.centery += self.gravity_vel
 
 class Block(pg.sprite.Sprite):
@@ -57,11 +60,11 @@ def main():
 
     obstacle_rect_lst = []
 
-    player = Player((WIDTH // 2, HEIGHT - 50))
+    player = Player((WIDTH // 2, HEIGHT - 200))
     blocks = pg.sprite.Group()
     for i in range(-1024, 1025):
-        if 1 <= i % 32 <= 16:
-            continue
+        # if 1 <= i % 32 <= 16:
+        #     continue
         blocks.add(Block((i * Block.size[0], HEIGHT)))
     for i in range(100):
         for j in range(10):
@@ -80,15 +83,23 @@ def main():
 
         player.update(key_lst)
 
-        player.isGround = False
-        collide_lst = pg.sprite.spritecollide(player, blocks, False)
-        if len(collide_lst) > 0:
-            for b in collide_lst:
+        player.is_ground = False
+        for b in pg.sprite.spritecollide(player, blocks, False):
+            # if player.vel[0] != 0:
+            #     player.is_locked_x = True
+            #     # player.vel[0] = 0
+            #     # if player.rect.left < b.rect.right:
+            #     #     b.rect.right = WIDTH // 2 - player.rect.width // 2
+            #     # elif player.rect.right > b.rect.left:
+            #     #     b.rect.left = WIDTH // 2 + player.rect.width // 2
+            if player.vel[1] != 0:
+                player.vel[1] = 0
                 if player.rect.top < b.rect.bottom:
                     player.rect.top = b.rect.bottom
                 if player.rect.bottom > b.rect.top:
                     player.rect.bottom = b.rect.top
-                    player.isGround = True
+                    player.is_ground = True
+        
 
         # スクロール
         for r in obstacle_rect_lst:
