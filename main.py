@@ -3,6 +3,7 @@ import pygame as pg
 
 WIDTH = 1600
 HEIGHT = 1024
+CAMERA_POS = (WIDTH // 2, HEIGHT - 200)
 
 class Player(pg.sprite.Sprite):
     move_dict = {
@@ -24,23 +25,24 @@ class Player(pg.sprite.Sprite):
         self.walk_vel = 20
         self.jump_power = 256
         self.is_ground = False
+        self.valit_ipt = [0, 0]
         self.vel = [0, 0]
-        self.is_locked_x = False
 
     def update(self, key_lst: dict):
         self.vel = [0, 0]
+        self.valit_ipt = [0, 0]
         for d in __class__.move_dict:
             if key_lst[d]:
-                if not self.is_locked_x:
-                    self.vel[0] += self.move_dict[d][0] * self.walk_vel
+                self.valit_ipt[0] = self.move_dict[d][0]
+                self.vel[0] = self.move_dict[d][0] * self.walk_vel
                 if self.is_ground:
-                    self.rect.centery += self.move_dict[d][1] * self.jump_power
-                    if self.move_dict[d][1] < 0:
+                    self.valit_ipt[1] = self.move_dict[d][1]
+                    self.vel[1] = self.valit_ipt[1] * self.jump_power
+                    if self.vel[1] < 0:
                         self.is_ground = False
 
         if not self.is_ground:
             self.vel[1] += self.gravity_vel
-            self.rect.centery += self.gravity_vel
 
 class Block(pg.sprite.Sprite):
     size = (32, 32)
@@ -60,7 +62,7 @@ def main():
 
     obstacle_rect_lst = []
 
-    player = Player((WIDTH // 2, HEIGHT - 200))
+    player = Player(CAMERA_POS)
     blocks = pg.sprite.Group()
     for i in range(-WIDTH, WIDTH):
         # if 1 <= i % 32 <= 16:
@@ -84,27 +86,36 @@ def main():
 
         player.update(key_lst)
 
-        player.is_ground = False
-        for b in pg.sprite.spritecollide(player, blocks, False):
-            # if player.vel[0] != 0:
-            #     player.is_locked_x = True
-            #     # player.vel[0] = 0
-            #     # if player.rect.left < b.rect.right:
-            #     #     b.rect.right = WIDTH // 2 - player.rect.width // 2
-            #     # elif player.rect.right > b.rect.left:
-            #     #     b.rect.left = WIDTH // 2 + player.rect.width // 2
-            if player.vel[1] != 0:
-                player.vel[1] = 0
-                if player.rect.top < b.rect.bottom:
-                    player.rect.top = b.rect.bottom
-                if player.rect.bottom > b.rect.top:
-                    player.rect.bottom = b.rect.top
-                    player.is_ground = True
-        
-
         # スクロール
         for r in obstacle_rect_lst:
             r.x -= player.vel[0]
+            if not player.is_ground:
+                r.y -= player.vel[1]
+
+        collide_lst = pg.sprite.spritecollide(player, blocks, False)
+        if len(collide_lst) == 0:
+            player.is_ground = False
+        for b in collide_lst:
+
+            if player.vel[1] > 0:
+                for r in obstacle_rect_lst:
+                    r.y += player.vel[1]
+                    player.is_ground = True
+                    player.vel[1] = 0
+            elif player.vel[1] < 0:
+                for r in obstacle_rect_lst:
+                    r.y += player.vel[1]
+                    player.vel[1] = 0
+
+            if player.rect.bottom > b.rect.centery:
+                if player.vel[0] != 0:
+                    if player.vel[0] < 0:
+                        for r in obstacle_rect_lst:
+                            r.x += player.vel[0]
+                    elif player.vel[0] > 0:
+                        for r in obstacle_rect_lst:
+                            r.x += player.vel[0]
+                    player.vel[0] = 0
 
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
