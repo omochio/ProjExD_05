@@ -2,13 +2,17 @@ import sys
 import pygame as pg
 
 WIDTH = 1600
-HEIGHT = 1024
-CAMERA_POS = (WIDTH // 2, HEIGHT - 200)
+HEIGHT = 1000
+# ビューの座標
+VIEW_POS = (WIDTH // 2, HEIGHT - 200)
 
+# スクロールのために動的に変更されるrectのリスト
 dynamic_rect_lst = []
 
 class Player(pg.sprite.Sprite):
-    move_dict = {
+
+    # 入力と移動方向の対応
+    __move_dict = {
         pg.K_LEFT: (-1, 0),
         pg.K_a: (-1, 0),
         pg.K_RIGHT: (1, 0),
@@ -18,6 +22,10 @@ class Player(pg.sprite.Sprite):
     }
 
     def __init__(self, pos: tuple[int, int]):
+        """
+        Playerクラスの初期化
+        pos: 初期座標
+        """
         super().__init__()
         self.__size = (64, 64)
         self.image = pg.Surface(self.__size)
@@ -33,70 +41,120 @@ class Player(pg.sprite.Sprite):
         self.__vel = [0, 0]
 
     @property
-    def is_grounded(self):
+    def is_grounded(self) -> bool:
+        """
+        接地判定変数のgetter
+        返り値: 接地判定変数の値
+        """
         return self.__is_grounded
     
     @is_grounded.setter
     def is_grounded(self, value: bool):
+        """
+        接地判定変数のsetter
+        value: 接地判定変数の値
+        """
         self.__is_grounded = value
 
     @property
-    def vel(self):
-        return self.__vel
+    def vel(self) -> list[int, int]:
+        """
+        速度のgetter
+        返り値: 速度のリスト
+        """
+        return self.__vel.copy()
 
-    @vel.setter
-    def vel(self, vx: int = None, vy: int = None):
-        if vx is None:
-            vx = self.__vel[0]
-        else:
+    def set_vel(self, vx: int = None, vy: int = None):
+        """
+        速度のsetter
+        Noneを入れた方向は変更しない
+        vx: x方向の速度
+        vy: y方向の速度
+        """
+        if vx is not None:
             self.__vel[0] = int(vx)
-        if vy is None:
-            vy = self.__vel[1]
-        else:
+        if vy is not None:
             self.__vel[1] = int(vy)
 
+    def add_vel(self, vx: int = 0, vy: int = 0):
+        """
+        速度の加算
+        vx: x方向の加算速度
+        vy: y方向の加算速度
+        """
+        self.__vel[0] += int(vx)
+        self.__vel[1] += int(vy)
+
     def update(self, key_lst: dict):
+        """
+        Playerの更新を行う
+        key_lst: 押されているキーのリスト
+        """
         self.__acc = [0, 0]
-        for d in __class__.move_dict:
+        # 入力と移動方向dictに応じて加速度を設定
+        for d in __class__.__move_dict:
             if key_lst[d]:
-                self.__acc[0] += self.__walk_acc * self.move_dict[d][0]
+                self.__acc[0] += self.__walk_acc * __class__.__move_dict[d][0]
+                # 接地時のみジャンプ可能
                 if self.is_grounded:
-                    self.vel[1] = self.__jump_init_vel * self.move_dict[d][1]
+                    self.set_vel(vy=self.__jump_init_vel * __class__.__move_dict[d][1])
+                    # self.__vel[1] = self.__jump_init_vel * __class__.__move_dict[d][1]
                     if self.vel[1] < 0:
                         self.is_grounded = False
 
+        # 重力加速度を加算
         if not self.is_grounded:
             self.__acc[1] += self.__gravity_acc
 
-        self.vel[0] += self.__acc[0]
+        # 加速度と速度上限から速度を計算
+        self.add_vel(self.__acc[0])
         if self.vel[0] < -self.__walk_vel_max:
-            self.vel[0] = -self.__walk_vel_max
+            self.set_vel(-self.__walk_vel_max)
         elif self.vel[0] > self.__walk_vel_max:
-            self.vel[0] = self.__walk_vel_max
-        self.vel[1] += self.__acc[1]
+            self.set_vel(self.__walk_vel_max)
+        self.add_vel(vy=self.__acc[1])
 
 class Block(pg.sprite.Sprite):
-    size = (50, 50)
+    """
+    初期生成されるブロックに関するクラス
+    """
+    # ブロックのサイズ
+    __size = (50, 50)
 
     def __init__(self, pos: tuple[int, int]):
         super().__init__()
-        self.image = pg.Surface(__class__.size)
+        self.image = pg.Surface(__class__.__size)
         self.image.fill((127, 127, 127))
         self.rect = self.image.get_rect()
         self.rect.center = pos
 
+    @classmethod
+    @property
+    def size(cls) -> tuple[int, int]:
+        """
+        サイズのgetter
+        返り値: サイズのタプル
+        """
+        return cls.__size
+
 def main():
+    """
+    ゲームループ
+    """
     pg.display.set_caption("proto")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
 
     bg_img = pg.Surface((WIDTH, HEIGHT))
     dynamic_rect_lst.append(bg_img.get_rect())
 
-    player = Player(CAMERA_POS)
+    player = Player(VIEW_POS)
     blocks = pg.sprite.Group()
     floor_blocks = pg.sprite.Group()
+
+    # 床の生成
     for i in range(WIDTH // Block.size[0] + 1):
         floor_blocks.add(Block((i * Block.size[0], HEIGHT)))
+    # 壁の生成
     for i in range(1000):
         for j in range(10):
             blocks.add(Block((i * 2000, HEIGHT - j * Block.size[1])))
@@ -113,9 +171,12 @@ def main():
         
         key_lst = pg.key.get_pressed()
 
+        # 各スプライトの更新
         player.update(key_lst)
 
-        # スクロール
+        # スクロール処理
+        # player以外のrectをplayerの速度に応じて移動
+        # 床はy方向のみ移動
         for r in dynamic_rect_lst:
             r.x -= player.vel[0]
             if not player.is_grounded:
@@ -134,13 +195,12 @@ def main():
                     if player.vel[0] < 0:
                         for r in dynamic_rect_lst:
                             r.x += player.vel[0]
-                        player.vel[0] = 0
-                        # break
+                        player.set_vel(0)
                     elif player.vel[0] > 0:
                         for r in dynamic_rect_lst:
                             r.x += player.vel[0]
-                        player.vel[0] = 0
-                        # break
+                        player.set_vel(0)
+
                 # y方向
                 if b.rect.left <= player.rect.centerx <= b.rect.right:
                     for r in dynamic_rect_lst:
@@ -149,12 +209,11 @@ def main():
                         sb.rect.y += player.vel[1]
                     if player.vel[1] > 0:
                         player.is_grounded = True
-                    player.vel[1] = 0
+                    player.set_vel(vy=0)
                     # 摩擦
-                    player.vel[0] = int(0.8 * player.vel[0])
+                    player.set_vel(int(0.8 * player.vel[0]))
 
-        print(player.vel, player.is_grounded)
-
+        # 各種描画処理
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
         floor_blocks.draw(screen)
