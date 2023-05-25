@@ -24,9 +24,8 @@ class Player(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = pos
         self.gravity_acc = 1
-        self.walk_acc = 1
-        self.walk_vel_max = 10
-        self.drag_x = 0.25
+        self.walk_acc = 2
+        self.walk_vel_max = 20
         self.jump_acc = 20
         self.jump_vel_max = 250
         self.is_ground = False
@@ -135,6 +134,7 @@ def main():
                     if player.vel[1] > 0:
                         player.is_ground = True
                     player.vel[1] = 0
+                    player.vel[0] *= 0.8
 
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
