@@ -6,6 +6,8 @@ HEIGHT = 1024
 CAMERA_POS = (WIDTH // 2, HEIGHT - 200)
 
 class Player(pg.sprite.Sprite):
+    size = (64, 64)
+
     move_dict = {
         pg.K_LEFT: (-1, 0),
         pg.K_a: (-1, 0),
@@ -17,7 +19,7 @@ class Player(pg.sprite.Sprite):
 
     def __init__(self, pos: tuple[int, int]):
         super().__init__()
-        self.image = pg.Surface((64, 64))
+        self.image = pg.Surface(__class__.size)
         self.image.fill((255, 255, 255))
         self.rect = self.image.get_rect()
         self.rect.center = pos
@@ -45,11 +47,11 @@ class Player(pg.sprite.Sprite):
             self.vel[1] += self.gravity_vel
 
 class Block(pg.sprite.Sprite):
-    size = (32, 32)
+    size = (50, 50)
 
     def __init__(self, pos: tuple[int, int]):
         super().__init__()
-        self.image = pg.Surface((32, 32))
+        self.image = pg.Surface(__class__.size)
         self.image.fill((127, 127, 127))
         self.rect = self.image.get_rect()
         self.rect.center = pos
@@ -57,10 +59,12 @@ class Block(pg.sprite.Sprite):
 def main():
     pg.display.set_caption("proto")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
+
+    nonplayer_rect_lst = []
+    
     bg_img = pg.Surface((WIDTH, HEIGHT))
     bg_img.fill((0, 0, 0))
-
-    obstacle_rect_lst = []
+    nonplayer_rect_lst.append(bg_img.get_rect())
 
     player = Player(CAMERA_POS)
     blocks = pg.sprite.Group()
@@ -73,7 +77,7 @@ def main():
             blocks.add(Block((i * 1000, HEIGHT - j * Block.size[1])))
             blocks.add(Block((i * 1000 + Block.size[0], HEIGHT - j * Block.size[1])))
     for b in blocks:
-        obstacle_rect_lst.append(b.rect)
+        nonplayer_rect_lst.append(b.rect)
 
     tmr = 0
     clock = pg.time.Clock()
@@ -87,35 +91,36 @@ def main():
         player.update(key_lst)
 
         # スクロール
-        for r in obstacle_rect_lst:
+        for r in nonplayer_rect_lst:
             r.x -= player.vel[0]
             if not player.is_ground:
                 r.y -= player.vel[1]
 
+        # ブロックとの衝突判定
         collide_lst = pg.sprite.spritecollide(player, blocks, False)
         if len(collide_lst) == 0:
             player.is_ground = False
-        for b in collide_lst:
-
-            if player.vel[1] > 0:
-                for r in obstacle_rect_lst:
-                    r.y += player.vel[1]
-                    player.is_ground = True
-                    player.vel[1] = 0
-            elif player.vel[1] < 0:
-                for r in obstacle_rect_lst:
-                    r.y += player.vel[1]
-                    player.vel[1] = 0
-
-            if player.rect.bottom > b.rect.centery:
-                if player.vel[0] != 0:
+        else:
+            for b in collide_lst:
+                # x方向
+                if player.rect.bottom > b.rect.centery:
                     if player.vel[0] < 0:
-                        for r in obstacle_rect_lst:
+                        for r in nonplayer_rect_lst:
                             r.x += player.vel[0]
+                        player.vel[0] = 0
+                        break
                     elif player.vel[0] > 0:
-                        for r in obstacle_rect_lst:
+                        for r in nonplayer_rect_lst:
                             r.x += player.vel[0]
-                    player.vel[0] = 0
+                        player.vel[0] = 0
+                        break
+                # y方向
+                if b.rect.left <= player.rect.centerx <= b.rect.right:
+                    for r in nonplayer_rect_lst:
+                        r.y += player.vel[1]
+                    if player.vel[1] > 0:
+                        player.is_ground = True
+                    player.vel[1] = 0
 
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
