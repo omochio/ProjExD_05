@@ -23,28 +23,42 @@ class Player(pg.sprite.Sprite):
         self.image.fill((255, 255, 255))
         self.rect = self.image.get_rect()
         self.rect.center = pos
-        self.gravity_vel = 5
-        self.walk_vel = 20
-        self.jump_power = 256
+        self.gravity_acc = 1
+        self.walk_acc = 1
+        self.walk_vel_max = 10
+        self.drag_x = 0.25
+        self.jump_acc = 20
+        self.jump_vel_max = 250
         self.is_ground = False
-        self.valit_ipt = [0, 0]
+        self.acc = [0, 0]
         self.vel = [0, 0]
 
     def update(self, key_lst: dict):
-        self.vel = [0, 0]
-        self.valit_ipt = [0, 0]
+        self.acc = [0, 0]
         for d in __class__.move_dict:
             if key_lst[d]:
-                self.valit_ipt[0] = self.move_dict[d][0]
-                self.vel[0] = self.move_dict[d][0] * self.walk_vel
+                self.acc[0] = self.walk_acc * self.move_dict[d][0]
                 if self.is_ground:
-                    self.valit_ipt[1] = self.move_dict[d][1]
-                    self.vel[1] = self.valit_ipt[1] * self.jump_power
-                    if self.vel[1] < 0:
+                    self.acc[1] = self.jump_acc * self.move_dict[d][1]
+                    if self.acc[1] < 0:
                         self.is_ground = False
 
         if not self.is_ground:
-            self.vel[1] += self.gravity_vel
+            self.acc[1] += self.gravity_acc
+
+        self.vel[0] += self.acc[0]
+        # if self.vel[0] < -1 or self.vel[0] > 1:
+        #     self.vel[0] *= 1 - self.drag_x
+        # else:
+        #     self.vel[0] = 0
+        if self.vel[0] < -self.walk_vel_max:
+            self.vel[0] = -self.walk_vel_max
+        elif self.vel[0] > self.walk_vel_max:
+            self.vel[0] = self.walk_vel_max
+        self.vel[1] += self.acc[1]
+        if self.vel[1] < -self.jump_vel_max:
+            self.vel[1] = -self.jump_vel_max
+        print(self.vel)
 
 class Block(pg.sprite.Sprite):
     size = (50, 50)
