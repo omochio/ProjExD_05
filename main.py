@@ -158,7 +158,8 @@ def main():
     for i in range(1000):
         for j in range(10):
             blocks.add(Block((i * 2000, HEIGHT - j * Block.size[1])))
-            blocks.add(Block((i * 2000 + Block.size[0], HEIGHT - j * Block.size[1])))
+            if j > 3:
+                blocks.add(Block((i * 2000 + Block.size[0], HEIGHT - j * Block.size[1])))
     for b in blocks:
         dynamic_rect_lst.append(b.rect)
 
@@ -191,27 +192,39 @@ def main():
         else:
             for b in collide_lst:
                 # x方向
-                if player.rect.bottom > b.rect.centery:
+                if b.rect.top - player.rect.bottom < -player.rect.height // 4 and b.rect.bottom - player.rect.top > player.rect.height // 4:
                     if player.vel[0] < 0:
+                        gap = b.rect.right - player.rect.left
                         for r in dynamic_rect_lst:
-                            r.x += player.vel[0]
+                            r.x -= gap
                         player.set_vel(0)
                     elif player.vel[0] > 0:
+                        gap = player.rect.right - b.rect.left
                         for r in dynamic_rect_lst:
-                            r.x += player.vel[0]
+                            r.x += gap
                         player.set_vel(0)
 
                 # y方向
-                if b.rect.left <= player.rect.centerx <= b.rect.right:
-                    for r in dynamic_rect_lst:
-                        r.y += player.vel[1]
-                    for sb in floor_blocks:
-                        sb.rect.y += player.vel[1]
+                if b.rect.left - player.rect.right < -player.rect.width // 4 and b.rect.right - player.rect.left > player.rect.width // 4:
                     if player.vel[1] > 0:
+                        gap = player.rect.bottom - b.rect.top - 1
+                        for r in dynamic_rect_lst:
+                            r.y += gap
+                        for sb in floor_blocks:
+                            sb.rect.y += gap
                         player.is_grounded = True
+                    elif player.vel[1] < 0:
+                        gap = b.rect.bottom - player.rect.top
+                        print(gap)
+                        for r in dynamic_rect_lst:
+                            r.y -= gap
+                        for sb in floor_blocks:
+                            sb.rect.y -= gap
                     player.set_vel(vy=0)
-                    # 摩擦
-                    player.set_vel(int(0.8 * player.vel[0]))
+
+        # Playerの摩擦処理
+        if (player.is_grounded):
+            player.set_vel(int(0.9 * player.vel[0]))
 
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
