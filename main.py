@@ -5,9 +5,9 @@ WIDTH = 1600
 HEIGHT = 1024
 CAMERA_POS = (WIDTH // 2, HEIGHT - 200)
 
-class Player(pg.sprite.Sprite):
-    size = (64, 64)
+dynamic_rect_lst = []
 
+class Player(pg.sprite.Sprite):
     move_dict = {
         pg.K_LEFT: (-1, 0),
         pg.K_a: (-1, 0),
@@ -19,42 +19,61 @@ class Player(pg.sprite.Sprite):
 
     def __init__(self, pos: tuple[int, int]):
         super().__init__()
-        self.image = pg.Surface(__class__.size)
+        self.__size = (64, 64)
+        self.image = pg.Surface(self.__size)
         self.image.fill((255, 255, 255))
         self.rect = self.image.get_rect()
         self.rect.center = pos
-        self.gravity_acc = 1
-        self.walk_acc = 2
-        self.walk_vel_max = 20
-        self.jump_init_vel = 20
-        self.is_ground = False
-        self.acc = [0, 0]
-        self.vel = [0, 0]
+        self.__gravity_acc = 1
+        self.__walk_acc = 2
+        self.__walk_vel_max = 20
+        self.__jump_init_vel = 20
+        self.__is_grounded = False
+        self.__acc = [0, 0]
+        self.__vel = [0, 0]
 
-    def set_vel(self, vx: float, vy: float):
-        self.vel[0] = vx
-        self.vel[1] = vy
+    @property
+    def is_grounded(self):
+        return self.__is_grounded
+    
+    @is_grounded.setter
+    def is_grounded(self, value: bool):
+        self.__is_grounded = value
+
+    @property
+    def vel(self):
+        return self.__vel
+
+    @vel.setter
+    def vel(self, vx: int = None, vy: int = None):
+        if vx is None:
+            vx = self.__vel[0]
+        else:
+            self.__vel[0] = int(vx)
+        if vy is None:
+            vy = self.__vel[1]
+        else:
+            self.__vel[1] = int(vy)
 
     def update(self, key_lst: dict):
-        self.acc = [0, 0]
+        self.__acc = [0, 0]
         for d in __class__.move_dict:
             if key_lst[d]:
-                self.acc[0] += self.walk_acc * self.move_dict[d][0]
-                if self.is_ground:
-                    self.vel[1] = self.jump_init_vel * self.move_dict[d][1]
+                self.__acc[0] += self.__walk_acc * self.move_dict[d][0]
+                if self.is_grounded:
+                    self.vel[1] = self.__jump_init_vel * self.move_dict[d][1]
                     if self.vel[1] < 0:
-                        self.is_ground = False
+                        self.is_grounded = False
 
-        if not self.is_ground:
-            self.acc[1] += self.gravity_acc
+        if not self.is_grounded:
+            self.__acc[1] += self.__gravity_acc
 
-        self.vel[0] += self.acc[0]
-        if self.vel[0] < -self.walk_vel_max:
-            self.vel[0] = -self.walk_vel_max
-        elif self.vel[0] > self.walk_vel_max:
-            self.vel[0] = self.walk_vel_max
-        self.vel[1] += self.acc[1]
-        # print(self.vel)
+        self.vel[0] += self.__acc[0]
+        if self.vel[0] < -self.__walk_vel_max:
+            self.vel[0] = -self.__walk_vel_max
+        elif self.vel[0] > self.__walk_vel_max:
+            self.vel[0] = self.__walk_vel_max
+        self.vel[1] += self.__acc[1]
 
 class Block(pg.sprite.Sprite):
     size = (50, 50)
@@ -70,25 +89,20 @@ def main():
     pg.display.set_caption("proto")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
 
-    nonplayer_rect_lst = []
-    
     bg_img = pg.Surface((WIDTH, HEIGHT))
-    bg_img.fill((0, 0, 0))
-    nonplayer_rect_lst.append(bg_img.get_rect())
+    dynamic_rect_lst.append(bg_img.get_rect())
 
-    # player = Player(CAMERA_POS)
     player = Player(CAMERA_POS)
     blocks = pg.sprite.Group()
-    for i in range(-WIDTH, WIDTH):
-        # if 1 <= i % 32 <= 4:
-        #     continue
-        blocks.add(Block((i * Block.size[0], HEIGHT)))
+    floor_blocks = pg.sprite.Group()
+    for i in range(WIDTH // Block.size[0] + 1):
+        floor_blocks.add(Block((i * Block.size[0], HEIGHT)))
     for i in range(1000):
         for j in range(10):
             blocks.add(Block((i * 2000, HEIGHT - j * Block.size[1])))
             blocks.add(Block((i * 2000 + Block.size[0], HEIGHT - j * Block.size[1])))
     for b in blocks:
-        nonplayer_rect_lst.append(b.rect)
+        dynamic_rect_lst.append(b.rect)
 
     tmr = 0
     clock = pg.time.Clock()
@@ -102,40 +116,48 @@ def main():
         player.update(key_lst)
 
         # スクロール
-        for r in nonplayer_rect_lst:
+        for r in dynamic_rect_lst:
             r.x -= player.vel[0]
-            if not player.is_ground:
+            if not player.is_grounded:
                 r.y -= player.vel[1]
+        for sb in floor_blocks:
+            sb.rect.y -= player.vel[1]
 
         # ブロックとの衝突判定
-        collide_lst = pg.sprite.spritecollide(player, blocks, False)
+        collide_lst = pg.sprite.spritecollide(player, blocks, False) + pg.sprite.spritecollide(player, floor_blocks, False)
         if len(collide_lst) == 0:
-            player.is_ground = False
+            player.is_grounded = False
         else:
             for b in collide_lst:
                 # x方向
                 if player.rect.bottom > b.rect.centery:
                     if player.vel[0] < 0:
-                        for r in nonplayer_rect_lst:
+                        for r in dynamic_rect_lst:
                             r.x += player.vel[0]
                         player.vel[0] = 0
                         # break
                     elif player.vel[0] > 0:
-                        for r in nonplayer_rect_lst:
+                        for r in dynamic_rect_lst:
                             r.x += player.vel[0]
                         player.vel[0] = 0
                         # break
                 # y方向
                 if b.rect.left <= player.rect.centerx <= b.rect.right:
-                    for r in nonplayer_rect_lst:
+                    for r in dynamic_rect_lst:
                         r.y += player.vel[1]
+                    for sb in floor_blocks:
+                        sb.rect.y += player.vel[1]
                     if player.vel[1] > 0:
-                        player.is_ground = True
+                        player.is_grounded = True
                     player.vel[1] = 0
-                    player.vel[0] *= 0.8
+                    # 摩擦
+                    player.vel[0] = int(0.8 * player.vel[0])
+
+        print(player.vel, player.is_grounded)
 
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
+        floor_blocks.draw(screen)
         screen.blit(player.image, player.rect)
         pg.display.update()
 
