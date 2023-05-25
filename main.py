@@ -39,7 +39,7 @@ class Player(pg.sprite.Sprite):
         self.acc = [0, 0]
         for d in __class__.move_dict:
             if key_lst[d]:
-                self.acc[0] = self.walk_acc * self.move_dict[d][0]
+                self.acc[0] += self.walk_acc * self.move_dict[d][0]
                 if self.is_ground:
                     self.vel[1] = self.jump_init_vel * self.move_dict[d][1]
                     if self.vel[1] < 0:
