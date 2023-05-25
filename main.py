@@ -26,11 +26,14 @@ class Player(pg.sprite.Sprite):
         self.gravity_acc = 1
         self.walk_acc = 2
         self.walk_vel_max = 20
-        self.jump_acc = 20
-        self.jump_vel_max = 250
+        self.jump_init_vel = 20
         self.is_ground = False
         self.acc = [0, 0]
         self.vel = [0, 0]
+
+    def set_vel(self, vx: float, vy: float):
+        self.vel[0] = vx
+        self.vel[1] = vy
 
     def update(self, key_lst: dict):
         self.acc = [0, 0]
@@ -38,25 +41,19 @@ class Player(pg.sprite.Sprite):
             if key_lst[d]:
                 self.acc[0] = self.walk_acc * self.move_dict[d][0]
                 if self.is_ground:
-                    self.acc[1] = self.jump_acc * self.move_dict[d][1]
-                    if self.acc[1] < 0:
+                    self.vel[1] = self.jump_init_vel * self.move_dict[d][1]
+                    if self.vel[1] < 0:
                         self.is_ground = False
 
         if not self.is_ground:
             self.acc[1] += self.gravity_acc
 
         self.vel[0] += self.acc[0]
-        # if self.vel[0] < -1 or self.vel[0] > 1:
-        #     self.vel[0] *= 1 - self.drag_x
-        # else:
-        #     self.vel[0] = 0
         if self.vel[0] < -self.walk_vel_max:
             self.vel[0] = -self.walk_vel_max
         elif self.vel[0] > self.walk_vel_max:
             self.vel[0] = self.walk_vel_max
         self.vel[1] += self.acc[1]
-        if self.vel[1] < -self.jump_vel_max:
-            self.vel[1] = -self.jump_vel_max
         print(self.vel)
 
 class Block(pg.sprite.Sprite):
@@ -79,16 +76,17 @@ def main():
     bg_img.fill((0, 0, 0))
     nonplayer_rect_lst.append(bg_img.get_rect())
 
+    # player = Player(CAMERA_POS)
     player = Player(CAMERA_POS)
     blocks = pg.sprite.Group()
     for i in range(-WIDTH, WIDTH):
-        # if 1 <= i % 32 <= 16:
+        # if 1 <= i % 32 <= 4:
         #     continue
         blocks.add(Block((i * Block.size[0], HEIGHT)))
     for i in range(1000):
         for j in range(10):
-            blocks.add(Block((i * 1000, HEIGHT - j * Block.size[1])))
-            blocks.add(Block((i * 1000 + Block.size[0], HEIGHT - j * Block.size[1])))
+            blocks.add(Block((i * 2000, HEIGHT - j * Block.size[1])))
+            blocks.add(Block((i * 2000 + Block.size[0], HEIGHT - j * Block.size[1])))
     for b in blocks:
         nonplayer_rect_lst.append(b.rect)
 
