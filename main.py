@@ -54,7 +54,7 @@ class Player(pg.sprite.Sprite):
         elif self.vel[0] > self.walk_vel_max:
             self.vel[0] = self.walk_vel_max
         self.vel[1] += self.acc[1]
-        print(self.vel)
+        # print(self.vel)
 
 class Block(pg.sprite.Sprite):
     size = (50, 50)
@@ -119,12 +119,12 @@ def main():
                         for r in nonplayer_rect_lst:
                             r.x += player.vel[0]
                         player.vel[0] = 0
-                        break
+                        # break
                     elif player.vel[0] > 0:
                         for r in nonplayer_rect_lst:
                             r.x += player.vel[0]
                         player.vel[0] = 0
-                        break
+                        # break
                 # y方向
                 if b.rect.left <= player.rect.centerx <= b.rect.right:
                     for r in nonplayer_rect_lst:
