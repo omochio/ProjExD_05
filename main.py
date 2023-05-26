@@ -37,8 +37,8 @@ class Player(pg.sprite.Sprite):
         self.__walk_vel_max = 20
         self.__jump_init_vel = 20
         self.__is_grounded = False
-        self.__acc = [0, 0]
-        self.__vel = [0, 0]
+        self.__acc = [.0, .0]
+        self.__vel = [.0, .0]
 
     @property
     def is_grounded(self) -> bool:
@@ -57,14 +57,14 @@ class Player(pg.sprite.Sprite):
         self.__is_grounded = value
 
     @property
-    def vel(self) -> list[int, int]:
+    def vel(self) -> list[float, float]:
         """
         速度のgetter
         返り値: 速度のリスト
         """
         return self.__vel.copy()
 
-    def set_vel(self, vx: int = None, vy: int = None):
+    def set_vel(self, vx: float = None, vy: float = None):
         """
         速度のsetter
         Noneを入れた方向は変更しない
@@ -72,25 +72,25 @@ class Player(pg.sprite.Sprite):
         vy: y方向の速度
         """
         if vx is not None:
-            self.__vel[0] = int(vx)
+            self.__vel[0] = vx
         if vy is not None:
-            self.__vel[1] = int(vy)
+            self.__vel[1] = vy
 
-    def add_vel(self, vx: int = 0, vy: int = 0):
+    def add_vel(self, vx: float = .0, vy: float = .0):
         """
         速度の加算
         vx: x方向の加算速度
         vy: y方向の加算速度
         """
-        self.__vel[0] += int(vx)
-        self.__vel[1] += int(vy)
+        self.__vel[0] += vx
+        self.__vel[1] += vy
 
     def update(self, key_lst: dict):
         """
         Playerの更新を行う
         key_lst: 押されているキーのリスト
         """
-        self.__acc = [0, 0]
+        self.__acc = [.0, .0]
         # 入力と移動方向dictに応じて加速度を設定
         for d in __class__.__move_dict:
             if key_lst[d]:
@@ -179,11 +179,11 @@ def main():
         # player以外のrectをplayerの速度に応じて移動
         # 床はy方向のみ移動
         for r in dynamic_rect_lst:
-            r.x -= player.vel[0]
+            r.x -= int(player.vel[0])
             if not player.is_grounded:
-                r.y -= player.vel[1]
+                r.y -= int(player.vel[1])
         for sb in floor_blocks:
-            sb.rect.y -= player.vel[1]
+            sb.rect.y -= int(player.vel[1])
 
         # ブロックとの衝突判定
         collide_lst = pg.sprite.spritecollide(player, blocks, False) + pg.sprite.spritecollide(player, floor_blocks, False)
@@ -215,7 +215,6 @@ def main():
                         player.is_grounded = True
                     elif player.vel[1] < 0:
                         gap = b.rect.bottom - player.rect.top
-                        print(gap)
                         for r in dynamic_rect_lst:
                             r.y -= gap
                         for sb in floor_blocks:
@@ -224,8 +223,10 @@ def main():
 
         # Playerの摩擦処理
         if (player.is_grounded):
-            player.set_vel(int(0.9 * player.vel[0]))
+            player.set_vel(0.9 * player.vel[0])
 
+        print(player.vel)
+        
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
