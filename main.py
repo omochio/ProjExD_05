@@ -211,7 +211,7 @@ def main():
                 # y方向
                 else:
                     if player.vel[1] > 0:
-                        gap = player.rect.bottom - b.rect.top
+                        gap = player.rect.bottom - b.rect.top - 1
                         for r in dynamic_rect_lst:
                             r.y += gap
                         player.is_grounded = True
@@ -223,7 +223,7 @@ def main():
 
         # Playerの摩擦処理
         if (player.is_grounded):
-            player.set_vel(0.7 * player.vel[0])
+            player.set_vel(0.9 * player.vel[0])
 
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
