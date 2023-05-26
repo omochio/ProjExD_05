@@ -1,4 +1,5 @@
 import sys
+import random
 import pygame as pg
 
 WIDTH = 1600
@@ -34,7 +35,7 @@ class Player(pg.sprite.Sprite):
         self.rect.center = pos
         self.__gravity_acc = 1
         self.__walk_acc = 2
-        self.__walk_vel_max = 20
+        self.__walk_vel_max = 10
         self.__jump_init_vel = 20
         self.__is_grounded = False
         self.__acc = [.0, .0]
@@ -98,7 +99,6 @@ class Player(pg.sprite.Sprite):
                 # 接地時のみジャンプ可能
                 if self.is_grounded:
                     self.set_vel(vy=self.__jump_init_vel * __class__.__move_dict[d][1])
-                    # self.__vel[1] = self.__jump_init_vel * __class__.__move_dict[d][1]
                     if self.vel[1] < 0:
                         self.is_grounded = False
 
@@ -119,11 +119,12 @@ class Block(pg.sprite.Sprite):
     初期生成されるブロックに関するクラス
     """
     # ブロックのサイズ
-    __size = (50, 50)
+    # __size = (100, 100)
 
-    def __init__(self, pos: tuple[int, int]):
+    def __init__(self, pos: tuple[int, int], size: tuple[int, int]):
         super().__init__()
-        self.image = pg.Surface(__class__.__size)
+        self.size = size
+        self.image = pg.Surface(size)
         self.image.fill((127, 127, 127))
         self.rect = self.image.get_rect()
         self.rect.center = pos
@@ -137,6 +138,20 @@ class Block(pg.sprite.Sprite):
         """
         return cls.__size
 
+def create_blocks(min_count: int, max_count: int, blocks: pg.sprite.Group):
+    """
+    ブロックを生成する関数
+    min_count: 最小ブロック数
+    max_count: 最大ブロック数
+    blocks: ブロックを追加するグループ
+    """
+    global WIDTH, HEIGHT
+    # 床
+    blocks.add(Block((VIEW_POS[0], HEIGHT), (WIDTH, 100)))
+    # 障害物
+    for i in range(random.randint(min_count, max_count)):
+        blocks.add(Block((random.randint(0, WIDTH), random.randint(0, HEIGHT)), (random.randint(50, 100), random.randint(50, 100))))
+
 def main():
     """
     ゲームループ
@@ -149,17 +164,8 @@ def main():
 
     player = Player(VIEW_POS)
     blocks = pg.sprite.Group()
-    floor_blocks = pg.sprite.Group()
-
-    # 床の生成
-    for i in range(WIDTH // Block.size[0] + 1):
-        floor_blocks.add(Block((i * Block.size[0], HEIGHT)))
-    # 壁の生成
-    for i in range(1000):
-        for j in range(10):
-            blocks.add(Block((i * 2000, HEIGHT - j * Block.size[1])))
-            if j > 3:
-                blocks.add(Block((i * 2000 + Block.size[0], HEIGHT - j * Block.size[1])))
+    # Blockの作成
+    create_blocks(30, 80, blocks)
     for b in blocks:
         dynamic_rect_lst.append(b.rect)
 
@@ -182,17 +188,15 @@ def main():
             r.x -= int(player.vel[0])
             if not player.is_grounded:
                 r.y -= int(player.vel[1])
-        for sb in floor_blocks:
-            sb.rect.y -= int(player.vel[1])
 
         # ブロックとの衝突判定
-        collide_lst = pg.sprite.spritecollide(player, blocks, False) + pg.sprite.spritecollide(player, floor_blocks, False)
+        collide_lst = pg.sprite.spritecollide(player, blocks, False)
         if len(collide_lst) == 0:
             player.is_grounded = False
         else:
             for b in collide_lst:
                 # x方向
-                if b.rect.top - player.rect.bottom < -player.rect.height // 4 and b.rect.bottom - player.rect.top > player.rect.height // 4:
+                if player.rect.right <= b.rect.left + player.vel[0] or player.rect.left >= b.rect.right + player.vel[0]:
                     if player.vel[0] < 0:
                         gap = b.rect.right - player.rect.left
                         for r in dynamic_rect_lst:
@@ -205,32 +209,25 @@ def main():
                         player.set_vel(0)
 
                 # y方向
-                if b.rect.left - player.rect.right < -player.rect.width // 4 and b.rect.right - player.rect.left > player.rect.width // 4:
+                else:
                     if player.vel[1] > 0:
-                        gap = player.rect.bottom - b.rect.top - 1
+                        gap = player.rect.bottom - b.rect.top
                         for r in dynamic_rect_lst:
                             r.y += gap
-                        for sb in floor_blocks:
-                            sb.rect.y += gap
                         player.is_grounded = True
                     elif player.vel[1] < 0:
                         gap = b.rect.bottom - player.rect.top
                         for r in dynamic_rect_lst:
                             r.y -= gap
-                        for sb in floor_blocks:
-                            sb.rect.y -= gap
                     player.set_vel(vy=0)
 
         # Playerの摩擦処理
         if (player.is_grounded):
-            player.set_vel(0.9 * player.vel[0])
+            player.set_vel(0.7 * player.vel[0])
 
-        print(player.vel)
-        
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
         blocks.draw(screen)
-        floor_blocks.draw(screen)
         screen.blit(player.image, player.rect)
         pg.display.update()
 
