@@ -22,7 +22,7 @@ class Player(pg.sprite.Sprite):
         pg.K_SPACE: (0, -1)
     }
 
-    def __init__(self, pos: tuple[int, int]):
+    def __init__(self, center: tuple[int, int]):
         """
         Playerクラスの初期化
         pos: 初期座標
@@ -32,7 +32,7 @@ class Player(pg.sprite.Sprite):
         self.image = pg.Surface(self.__size)
         self.image.fill((255, 255, 255))
         self.rect = self.image.get_rect()
-        self.rect.center = pos
+        self.rect.center = center
         self.__gravity_acc = 1
         self.__walk_acc = 2
         self.__walk_vel_max = 10
@@ -121,13 +121,13 @@ class Block(pg.sprite.Sprite):
     # ブロックのサイズ
     # __size = (100, 100)
 
-    def __init__(self, pos: tuple[int, int], size: tuple[int, int]):
+    def __init__(self, center: tuple[int, int], size: tuple[int, int]):
         super().__init__()
         self.size = size
         self.image = pg.Surface(size)
         self.image.fill((127, 127, 127))
         self.rect = self.image.get_rect()
-        self.rect.center = pos
+        self.rect.center = center
 
     @classmethod
     @property
@@ -138,24 +138,100 @@ class Block(pg.sprite.Sprite):
         """
         return cls.__size
 
-def create_blocks(min_count: int, max_count: int, blocks: pg.sprite.Group):
+class Level():
     """
-    ブロックを生成する関数
-    min_count: 最小ブロック数
-    max_count: 最大ブロック数
-    blocks: ブロックを追加するグループ
+    レベル生成と保持を担うクラス
     """
-    global WIDTH, HEIGHT
-    # 床
-    blocks.add(Block((VIEW_POS[0], HEIGHT), (WIDTH, 100)))
-    # 障害物
-    for i in range(random.randint(min_count, max_count)):
-        blocks.add(Block((random.randint(0, WIDTH), random.randint(0, HEIGHT)), (random.randint(50, 100), random.randint(50, 100))))
+    def __init__(self):
+        global dynamic_rect_lst
+        self.blocks = pg.sprite.Group()
+        self.__flcl_height = 100
+        self.__ceil_y = -HEIGHT // 2
+        # self.blocks.add(Block((WIDTH // 2, 0), (WIDTH, self.__flcl_height)))
+        # self.__ceil_rct = self.blocks.sprites()[-1].rect
+        self.create_ceil((WIDTH // 2, self.__ceil_y))
+        self.blocks.add(Block((WIDTH // 2, HEIGHT), (WIDTH, self.__flcl_height)))
+        dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)
+        self.__left_floor_rct = self.blocks.sprites()[-1].rect
+        self.__right_floor_rct = self.blocks.sprites()[-1].rect
+        self.min_obstacle_count = 50
+        self.max_obstacle_count = 100
+        self.min_obstacle_width = 50
+        self.min_obstacle_height = 50
+        self.max_obstacle_width = 100
+        self.max_obstacle_height = 100
+        self.min_floor_width = 100
+        self.max_floor_width = WIDTH // 2
+        self.min_hole_width = 0
+        self.max_hole_width = WIDTH // 2
+
+    def update(self):
+        global WIDTH
+        if self.__left_floor_rct.left >= -WIDTH // 2:
+            self.create_ceil((self.__left_floor_rct.left - WIDTH // 2, self.__ceil_rct.centery))
+            prev_floor_rct = self.__left_floor_rct
+            total = 0
+            while total < WIDTH:
+                offset = random.randint(self.min_hole_width, self.max_hole_width)
+                sizex = random.randint(self.min_floor_width, self.max_floor_width)
+                if total + offset + sizex >= WIDTH:
+                    sizex = WIDTH - total
+                    offset = 0
+                    total += sizex
+                else:
+                    total += offset + sizex
+                self.create_floor((self.__left_floor_rct.left - (offset + sizex // 2), self.__left_floor_rct.centery), (sizex, self.__flcl_height))
+                self.__left_floor_rct = self.blocks.sprites()[-1].rect
+            self.create_obstacles((self.__left_floor_rct.left, prev_floor_rct.left), (self.__ceil_rct.bottom, self.__left_floor_rct.top))
+        elif self.__right_floor_rct.right <= WIDTH * 3 // 2:
+            self.create_ceil((self.__right_floor_rct.right + WIDTH // 2, self.__ceil_rct.centery))
+            prev_floor_rct = self.__right_floor_rct
+            total = 0
+            while total < WIDTH:
+                offset = random.randint(self.min_hole_width, self.max_hole_width)
+                sizex = random.randint(self.min_floor_width, self.max_floor_width)
+                if total + offset + sizex >= WIDTH:
+                    sizex = WIDTH - total
+                    offset = 0
+                    total += sizex
+                else:
+                    total += offset + sizex
+                self.create_floor((self.__right_floor_rct.right + (offset + sizex // 2), self.__right_floor_rct.centery), (sizex, self.__flcl_height))
+                self.__right_floor_rct = self.blocks.sprites()[-1].rect
+            self.create_obstacles((prev_floor_rct.right, self.__right_floor_rct.right), (self.__ceil_rct.bottom, self.__right_floor_rct.top))
+
+    def create_ceil(self, ceil_center: tuple[int, int]):
+        """
+        天井を生成する関数
+        """
+        global WIDTH, dynamic_rect_lst
+        self.blocks.add(Block(ceil_center, (WIDTH, self.__flcl_height)))
+        self.__ceil_rct = self.blocks.sprites()[-1].rect
+        dynamic_rect_lst.append(self.__ceil_rct)
+        print("create")
+        print(self.__ceil_rct.left)
+
+
+    def create_floor(self, floor_center: tuple[int, int], floor_size: tuple[int, int]):
+        """
+        床を生成する関数
+        """
+        global WIDTH, dynamic_rect_lst
+        self.blocks.add(Block(floor_center, floor_size))
+        dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)
+        # print("create")
+
+    def create_obstacles(self, rangex: tuple[int, int], rangey: tuple[int, int]):
+        # 障害物
+        for i in range(random.randint(self.min_obstacle_count, self.max_obstacle_count)):
+            self.blocks.add(Block((random.randint(*rangex), random.randint(*rangey)), (random.randint(self.min_obstacle_width, self.max_obstacle_width), random.randint(self.min_obstacle_height, self.max_obstacle_height))))
+            dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)            
 
 def main():
     """
     ゲームループ
     """
+    global dynamic_rect_lst
     pg.display.set_caption("proto")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
 
@@ -163,11 +239,7 @@ def main():
     dynamic_rect_lst.append(bg_img.get_rect())
 
     player = Player(VIEW_POS)
-    blocks = pg.sprite.Group()
-    # Blockの作成
-    create_blocks(30, 80, blocks)
-    for b in blocks:
-        dynamic_rect_lst.append(b.rect)
+    level = Level()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -180,6 +252,7 @@ def main():
 
         # 各スプライトの更新
         player.update(key_lst)
+        level.update()
 
         # スクロール処理
         # player以外のrectをplayerの速度に応じて移動
@@ -190,7 +263,7 @@ def main():
                 r.y -= int(player.vel[1])
 
         # ブロックとの衝突判定
-        collide_lst = pg.sprite.spritecollide(player, blocks, False)
+        collide_lst = pg.sprite.spritecollide(player, level.blocks, False)
         if len(collide_lst) == 0:
             player.is_grounded = False
         else:
@@ -211,7 +284,7 @@ def main():
                 # y方向
                 else:
                     if player.vel[1] > 0:
-                        gap = player.rect.bottom - b.rect.top - 1
+                        gap = player.rect.bottom - b.rect.top
                         for r in dynamic_rect_lst:
                             r.y += gap
                         player.is_grounded = True
@@ -225,9 +298,11 @@ def main():
         if (player.is_grounded):
             player.set_vel(0.9 * player.vel[0])
 
+        # print(player.vel)
+
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
-        blocks.draw(screen)
+        level.blocks.draw(screen)
         screen.blit(player.image, player.rect)
         pg.display.update()
 
