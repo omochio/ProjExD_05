@@ -36,6 +36,11 @@ class Player(pg.sprite.Sprite):
         self.image.fill((255, 255, 255))
         self.rect = self.image.get_rect()
         self.rect.center = center
+        self.my_timer = 0
+        self.box_timer = 0
+        self.curve_timer = 0
+        self.is_predict = False
+        self.is_pre_predict = False
         self.__acc = [.0, .0]
         self.__vel = [.0, .0]
         self.__gravity_acc = 1
@@ -121,6 +126,11 @@ class Player(pg.sprite.Sprite):
         Playerの更新を行う
         key_lst: 押されているキーのリスト
         """
+        
+        self.my_timer += 1
+        self.update_box(key_lst)
+        self.update_bomb(key_lst)
+        self.update_throw_predict(key_lst)
         self.__acc = [.0, .0]
         # 入力と移動方向dictに応じて加速度を設定
         for d in __class__.__move_dict:
@@ -143,7 +153,82 @@ class Player(pg.sprite.Sprite):
         elif self.vel[0] > self.__walk_vel_max:
             self.set_vel(self.__walk_vel_max)
         self.add_vel(vy=self.__acc[1])
+        
         self.check_hyper()
+        
+    
+    def update_box(self,key_lst: dict):
+        """
+        Press mouse Left
+        box throw 
+        """        
+        
+        #次に投げれるようになるまでのフレーム数
+        if self.my_timer - self.box_timer < 10:
+            return
+        
+        
+        pg.event.get()
+        if pg.mouse.get_pressed()[0]:
+            self.box_timer = self.my_timer
+            throw_arg = [0,0]
+            mouse_pos = list(pg.mouse.get_pos())
+            player_pos = list(self.rect.center)
+            throw_arg[0] = (mouse_pos[0] - player_pos[0])/15
+            throw_arg[1] = (mouse_pos[1] - player_pos[1])/15
+            Box((self.rect.centerx + throw_arg[0],self.rect.centery - 10 + throw_arg[1]),tuple(throw_arg),power=2.0)
+            
+            
+            
+    def update_bomb(self,key_lst: dict):
+        """
+        Press mouse Riglt
+        bomb throw 
+        """        
+        
+        #次に投げれるようになるまでのフレーム数
+        if self.my_timer - self.box_timer < 30:
+            return
+        
+        
+        pg.event.get()
+        if pg.mouse.get_pressed()[2]:
+            self.box_timer = self.my_timer
+            throw_arg = [0,0]
+            mouse_pos = list(pg.mouse.get_pos())
+            player_pos = list(self.rect.center)
+            throw_arg[0] = (mouse_pos[0] - player_pos[0])/15
+            throw_arg[1] = (mouse_pos[1] - player_pos[1])/15
+            Bomb(self.rect.center,tuple(throw_arg),power=2.0)
+            
+    def update_throw_predict(self,key_lst: dict):
+        """
+        Press Shift
+        draw throw curve 
+        """        
+        
+        
+        pg.event.get()
+        #CTRLで予測線
+        if (key_lst[pg.K_RCTRL]):
+            if not self.is_pre_predict:
+                self.is_predict = not self.is_predict
+                self.is_pre_predict = True
+        else:
+            self.is_pre_predict = False
+        
+        #次に投げれるようになるまでのフレーム数
+        if self.my_timer - self.curve_timer < 10:
+            return
+        
+        if self.is_predict:
+            self.curve_timer = self.my_timer
+            throw_arg = [0,0]
+            mouse_pos = list(pg.mouse.get_pos())
+            player_pos = list(self.rect.center)
+            throw_arg[0] = (mouse_pos[0] - player_pos[0])/15
+            throw_arg[1] = (mouse_pos[1] - player_pos[1])/15
+            Throw_predict(self.rect.center,tuple(throw_arg),power=2.0)
 
 class Block(pg.sprite.Sprite):
     """
@@ -164,6 +249,167 @@ class Block(pg.sprite.Sprite):
         返り値: サイズのタプル
         """
         return self.__size
+
+class Box(pg.sprite.Sprite):
+    """
+    playerがなげるBoxClassです
+    """
+    boxes = pg.sprite.Group()
+    def __init__(self, pos: tuple[int, int],vel:tuple[float,float],power:float=5):
+        global dynamic_rect_lst
+        super().__init__()
+        self.image = pg.Surface((50, 50))
+        self.image.fill((0, 255, 255))
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
+        self.gravity_val = 1
+        self.life = 0
+        self.is_ground = False
+        self.vel = list(vel)
+        self.acc = [0,0]
+        self.acc = [0,self.gravity_val]
+        __class__.boxes.add(self)
+        dynamic_rect_lst.append(self.rect)
+        
+
+    def update(self):
+        
+        self.life += 1
+        if self.life > 6000:
+            self.kill()
+        self.vel[0] += self.acc[0]
+        self.vel[1] += self.acc[1]
+        
+        
+        
+        if self.is_ground:
+            self.vel[1] = 0
+            self.vel[0] = 0
+        
+        self.rect.x += self.vel[0]
+        self.rect.y += self.vel[1]
+        
+    def set_vel(self,vx,vy):
+        self.vel[1] = vy
+        self.vel[0] = vx
+    
+    def is_moving(self):
+        #[0,0]でないならFalse
+        return not self.vel == [0,0]
+
+class Bomb(pg.sprite.Sprite):
+    """
+    playerがなげるBombClassです
+    """
+    bombs = pg.sprite.Group()
+    def __init__(self, pos: tuple[int, int],vel:tuple[float,float],power:float=5):
+        global dynamic_rect_lst
+        super().__init__()
+        self.image = pg.Surface((30, 30))
+        self.image.fill((255, 128, 0))
+        self.rect = self.image.get_rect()
+        #self.image.set_alpha(128)
+        self.rect.center = pos
+        self.gravity_val = 1
+        self.life = 0
+        self.is_ground = False
+        self.vel = list(vel)
+        self.acc = [0,0]
+        self.acc = [0,self.gravity_val]
+        __class__.bombs.add(self)
+        dynamic_rect_lst.append(self.rect)
+
+    def update(self):
+        life_max = 180
+        self.life += 1
+        
+        #自動で消えるまでの時間
+        if self.life >= life_max:
+            Explode(self.rect.center)
+            self.kill()
+            
+        #爆発までの時間を色で表現
+        self.image.fill((255 - 128*int((self.life/life_max/120)), 128 * (1 - self.life/life_max), 255 * (self.life/life_max)**2))
+        
+        self.vel[0] += self.acc[0]
+        self.vel[1] += self.acc[1]
+        
+        
+        
+        if self.is_ground:
+            self.vel[1] = 0
+            self.vel[0] = 0
+        
+        self.rect.x += self.vel[0]
+        self.rect.y += self.vel[1]
+        
+    def set_vel(self,vx,vy):
+        self.vel[1] = vy
+        self.vel[0] = vx
+        
+class Explode(pg.sprite.Sprite):
+    """
+    Bombが爆発した時に呼び出されるExplodeClassです
+    """
+    explodes = pg.sprite.Group()
+    def __init__(self, pos: tuple[int, int],power:float=7):
+        global dynamic_rect_lst
+        super().__init__()
+        rad = power * 16
+        self.image = pg.Surface((rad, rad))
+        self.image.fill((200, 0, 0))
+        pg.draw.circle(self.image, (200, 0, 0), (rad, rad), rad)
+        self.image.set_colorkey((255, 255, 255))
+        self.image.set_alpha(128)
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
+        self.life = 0
+        __class__.explodes.add(self)
+        dynamic_rect_lst.append(self.rect)
+
+    def update(self):
+        self.life += 1
+        #自動で消えるまでの時間
+        if self.life > 12:
+            self.kill()
+          
+
+class Throw_predict(pg.sprite.Sprite):
+    """
+    playerがなげるものの予測線Classです
+    """
+    predicts = pg.sprite.Group()
+    def __init__(self, pos: tuple[int, int],vel:tuple[float,float],power:float=5):
+        global dynamic_rect_lst
+        super().__init__()
+        self.image = pg.Surface((15, 15))
+        self.image.fill((255, 200, 255))
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
+        self.gravity_val = 1
+        self.life = 0
+        self.vel = list(vel)
+        self.acc = [0,0]
+        self.acc = [0,self.gravity_val]
+        __class__.predicts.add(self)
+        dynamic_rect_lst.append(self.rect)
+
+    def update(self):
+        
+        self.life += 1
+        #自動で消えるまでの時間
+        if self.life > 20:
+            self.kill()
+        self.vel[0] += self.acc[0]
+        self.vel[1] += self.acc[1]
+        
+        self.rect.x += self.vel[0]
+        self.rect.y += self.vel[1]
+        
+    def set_vel(self,vx,vy):
+        self.vel[1] = vy
+        self.vel[0] = vx
+        
 
 class Level():
     """
@@ -244,8 +490,6 @@ class Level():
         self.blocks.add(Block(ceil_center, (WIDTH, self.__flcl_height)))
         self.__ceil_rct = self.blocks.sprites()[-1].rect
         dynamic_rect_lst.append(self.__ceil_rct)
-        print("create")
-        print(self.__ceil_rct.left)
 
 
     def create_floor(self, floor_center: tuple[int, int], floor_size: tuple[int, int]):
@@ -290,16 +534,19 @@ class Score:
     """
     def __init__(self):
         self.score = 0
+        self.kill_enemy = 0
+        self.progress = 0
+        self.player_init_pos_x = 0
         self.final_score = 0
         self.font = pg.font.Font(None, 36)
         self.game_over_font = pg.font.Font(None, 50)
-        
-
+            
     def increase(self, points):
         self.score += points
 
     def render(self, surface, pos):
-        score_surface = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
+        print(self.progress)
+        score_surface = self.font.render("Score: " + str(self.score + self.progress), True, (255, 255, 255))
         surface.blit(score_surface, pos)
 
     def render_final(self):
@@ -332,7 +579,8 @@ def main():
     for i in range(1):
         enemys.add(Enemy(Enemy.x, Enemy.y))
     score = Score()
-
+    score.player_init_pos_x = level.blocks.sprites()[0].rect.centerx
+    
     tmr = 0
     clock = pg.time.Clock()
     while True:
@@ -347,6 +595,14 @@ def main():
 
         # 各スプライトの更新
         player.update(key_lst)
+        #Box
+        Box.boxes.update()
+        #Bomb
+        Bomb.bombs.update()
+        #Explode
+        Explode.explodes.update()
+        #predict
+        Throw_predict.predicts.update()
         level.update()
 
         # スクロール処理
@@ -356,7 +612,109 @@ def main():
             r.x -= int(player.vel[0])
             if not player.is_grounded:
                 r.y -= int(player.vel[1])
+                
+        
+        #毎フレーム落下するとして初期化
+        for i in Box.boxes:
+            i.is_ground = False
+        for i in Bomb.bombs:
+            i.is_ground = False
+            
+        #Boxの接地判定
+        collide_lst_n = pg.sprite.groupcollide(Box.boxes, level.blocks, False,False)
+        for box,collide_lst in collide_lst_n.items():
+            if len(collide_lst) == 0:
+                box.is_ground = False
+            for b in collide_lst:
+                # x方向
+                if  box.rect.right <= b.rect.left + box.vel[0] or box.rect.left >= b.rect.right + box.vel[0]:
+                    if box.vel[0] < 0:
+                        gap = b.rect.right - box.rect.left
+                        box.rect.centerx = box.rect.centerx + gap
+                        box.vel[0] = 0
+                    elif box.vel[0] > 0:
+                        gap = box.rect.right - b.rect.left
+                        box.rect.centerx = box.rect.centerx - gap
+                        
+                        box.vel[0] = 0
 
+                # y方向
+                else:
+                    if box.vel[1] > 0:
+                        
+                        gap = box.rect.bottom - b.rect.top - 1
+                        box.rect.centery =  box.rect.centery - gap
+                        box.is_ground = True
+                    elif box.vel[1] < 0:
+                        gap = b.rect.bottom - box.rect.top
+                        box.rect.centery = box.rect.centery + gap
+                    box.vel[1] = 0
+        
+            # Boxの摩擦処理
+            if box.is_ground:
+                box.vel[0] = (0.3 * box.vel[0])
+        
+        #Bombの接地判定
+        collide_lst = pg.sprite.groupcollide(Bomb.bombs, level.blocks, False,False)
+        for i in collide_lst:
+            i.is_ground = True
+        
+        #Box同士の衝突判定
+        collide_lst = pg.sprite.groupcollide(Box.boxes, Box.boxes, False,False)
+    
+        for obj,collide_lst_2 in collide_lst.items():
+            if len(collide_lst_2) > 1:
+                for obj2 in collide_lst_2:
+                    if not obj is obj2:
+                        
+                        #y軸
+                        if obj.rect.centery < obj2.rect.top : #and obj.vel[1] > abs(obj.vel[0]):
+                            obj.is_ground = True
+                            obj.rect.centery -= (obj.rect.bottom - obj2.rect.top)
+                            obj.vel[1] = 0
+                            obj.vel[0] = 0
+                            break
+                        else:
+                            pass
+                            #obj2.is_ground = False
+                            
+                        #x軸方向の当たり判定
+                        #print(id(obj),obj.is_ground)
+                        if not obj.is_ground:
+                            if obj2.rect.centerx > obj.rect.right > obj2.rect.left and obj.vel[0] > 0 and abs(obj.vel[1]) > abs(obj.vel[0]):
+                                obj.rect.centerx -= (obj.rect.right - obj2.rect.left) 
+                                obj.vel[0] = 0
+                            elif obj.rect.left < obj2.rect.right and obj.vel[0] < 0 and abs(obj.vel[1]) > abs(obj.vel[0]): #and abs(obj.vel[1]) < abs(obj.vel[0]):
+                                obj.rect.centerx += (obj2.rect.right - obj.rect.left)
+                                obj.vel[0] = 0
+        
+    
+        #BombとBoxのCollide
+        collide_lst = pg.sprite.groupcollide(Bomb.bombs, Box.boxes, False,False)
+        for bomb in collide_lst:
+            bomb.set_vel(0,0)
+            bomb.is_ground = True
+        #Bombによって召喚されたExplodeとBoxのCollide
+        collide_lst = pg.sprite.groupcollide(Explode.explodes, Box.boxes, False,False)
+        for key,items in collide_lst.items():
+            for item in items:
+                throw_arg = [0,0]
+                item_pos = list(item.rect.center)
+                key_pos = list(key.rect.center)
+                power_border = 0.5
+                throw_arg[0] = -(key_pos[0] - item_pos[0])/power_border + 0.001
+                throw_arg[1] = -(key_pos[1] - item_pos[1])/power_border + 0.001
+                #print(throw_arg)
+                #if abs(thro
+                item.vel[0] += throw_arg[0]
+                item.vel[1] += throw_arg[1]
+        
+        
+    
+        #予測線の接地判定
+        collide_lst = pg.sprite.groupcollide(Throw_predict.predicts, level.blocks, True,False)
+        
+        
         # ブロックとの衝突判定
         collide_lst = pg.sprite.spritecollide(player, level.blocks, False)
         if len(collide_lst) == 0:
@@ -389,6 +747,39 @@ def main():
                             r.y -= gap
                     player.set_vel(vy=0)
 
+        #ExplodeとPlayerの当たり判定 あたると吹っ飛ぶ
+        collide_lst = pg.sprite.spritecollide(player,Explode.explodes, False,False)
+        for explode in collide_lst:
+            
+            throw_arg = [0,0]
+            explode_pos = list(explode.rect.center)
+            player_pos = list(player.rect.center)
+            #print(explode_pos,player_pos)
+            power_border = 3
+            throw_arg[0] = -(explode_pos[0] - player_pos[0])/power_border + 0.001
+            throw_arg[1] = -(explode_pos[1] - player_pos[1])/power_border + 0.001
+            #print(throw_arg)
+            
+            player.add_vel(throw_arg[0],throw_arg[1])
+            
+
+        
+        #BoxにPlayerが乗るための接地判定
+        collide_lst = pg.sprite.spritecollide(player, Box.boxes, False)
+        for b in collide_lst:
+            # x方向
+            if False:
+                pass
+            # y方向
+            else:
+                if player.vel[1] > 0 and b.rect.centery > player.rect.bottom > b.rect.top:
+                    
+                    gap = player.rect.bottom - b.rect.top
+                    for r in dynamic_rect_lst:
+                        r.y += gap
+                    player.is_grounded = True
+                    
+                    player.set_vel(vy=0)
         # Playerの摩擦処理
         if (player.is_grounded):
             if player.vel[0] == 0:
@@ -407,6 +798,10 @@ def main():
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
         level.blocks.draw(screen)
+        Box.boxes.draw(screen)
+        Bomb.bombs.draw((screen))
+        Explode.explodes.draw((screen))
+        Throw_predict.predicts.draw((screen))
         screen.blit(player.image, player.rect)
         enemys.draw(screen)
         score.render(screen, (WIDTH - 150, 10))
@@ -414,6 +809,7 @@ def main():
 
         tmr += 1
         if tmr % 60 == 0:
+            score.progress = max(score.progress,abs(score.player_init_pos_x - player.rect.centerx))
             score.increase(1)
         clock.tick(60)
 
