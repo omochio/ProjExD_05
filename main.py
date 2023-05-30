@@ -1,7 +1,7 @@
 import sys
 import random
+from flask.views import View
 import pygame as pg
-import time
 
 WIDTH = 1600
 HEIGHT = 1000
@@ -523,9 +523,22 @@ class Enemy(pg.sprite.Sprite):  # エネミークラス
         self.rect = self.image.get_rect()
         dynamic_rect_lst.append(self.rect)
         self.rect.center = (x, y)
+        self.life = 0
 
     def update(self):
-        pass
+        if self.life % 60 == 0:
+            self.throw_bomb()
+        
+        self.life += 1
+        
+    def throw_bomb(self):
+        
+        throw_arg = [0,0]
+        player_pos = list(VIEW_POS)
+        enemy_pos = list(self.rect.center)
+        throw_arg[0] = (player_pos[0] - enemy_pos[0])/10
+        throw_arg[1] = (player_pos[1] - enemy_pos[1])/15
+        Bomb(self.rect.center,tuple(throw_arg),power=2.0)
 
 class Score:
     """
@@ -536,30 +549,34 @@ class Score:
         self.score = 0
         self.kill_enemy = 0
         self.progress = 0
+        self.time = 0
         self.player_init_pos_x = 0
         self.final_score = 0
         self.font = pg.font.Font(None, 36)
         self.game_over_font = pg.font.Font(None, 50)
-            
+    
+    def modify(self):
+        self.score = self.kill_enemy + self.progress + self.time        
     def increase(self, points):
-        self.score += points
+        self.time += points
 
     def render(self, surface, pos):
+        self.modify()
         #print(self.progress)
-        score_surface = self.font.render("Score: " + str(self.score + self.progress), True, (255, 255, 255))
+        score_surface = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
         surface.blit(score_surface, pos)
 
-    def render_final(self):
-        final_score_surface = self.font.render("GameOver!! \n Final Score: " + str(self.score), True, (255, 255, 255))
+    def render_final(self,surface):
+        self.modify()
+        final_score_surface = self.font.render(f"GameOver!!  Final Score: " + str(self.score), True, (255, 255, 255))
         restart_surface = self.font.render("Restart: press:'TAB' Quit: press:'ESC'", True, (255, 255, 255))
-        final_score_surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
-        restart_surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2))
-        for event in pg.event.get():
-            if event.type == pg.key.get_pressed:
-                if pg.key.get_pressed == pg.K_TAB:
-                    main()
-                elif pg.key.get_pressed == pg.K_ESCAPE:
-                    break
+        #final_score_surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
+        surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
+        surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2 -150))
+        #restart_surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2))
+        #final_score_surface.blit(surface, (WIDTH / 2, HEIGHT / 2 -50))
+        restart_surface.blit(surface, (WIDTH / 2, HEIGHT / 2))
+        pg.display.update()
 
 
 def main():
@@ -603,6 +620,9 @@ def main():
         Explode.explodes.update()
         #predict
         Throw_predict.predicts.update()
+        #Enemy
+        enemys.update()
+        
         level.update()
 
         # スクロール処理
@@ -791,9 +811,9 @@ def main():
                 
         for enemy in pg.sprite.spritecollide(player, enemys, True):
             if player.state == "hyper":
-                x = 1
+                pass
             else:
-                return
+                score.render_final(screen)
 
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
