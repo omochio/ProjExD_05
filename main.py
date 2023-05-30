@@ -1,6 +1,7 @@
 import sys
 import random
 import pygame as pg
+import time
 
 WIDTH = 1600
 HEIGHT = 1000
@@ -42,6 +43,8 @@ class Player(pg.sprite.Sprite):
         self.__walk_vel_max = 10
         self.__jump_init_vel = 20
         self.__is_grounded = False
+        self.state = "normal" # プレイヤーの状態
+        self.hyper_life = 0 # 残りの無敵状態時間
 
     @property
     def is_grounded(self) -> bool:
@@ -88,6 +91,31 @@ class Player(pg.sprite.Sprite):
         self.__vel[0] += vx
         self.__vel[1] += vy
 
+    def change_state(self, state: str, hyper_life: int):
+        """
+        右シフトキーが押された時に, プレイヤーを無敵状態にする関数
+        引数1 state : プレイヤーの状態
+        引数2 hyper_life : 無敵状態になっている時間
+        戻り値 : なし
+        """
+        self.state = state
+        self.hyper_life = hyper_life
+
+    def check_hyper(self):
+        """
+        プレイヤーが無敵状態かどうかを判定し, プレイヤーの色を変える
+        戻り値 : なし
+        """
+        if self.state == "hyper":
+            # プレイヤーが無敵状態だったら
+            self.image.fill((168, 88, 168)) # プレイヤーの色を紫にする
+            self.hyper_life += -1 # 残りの無敵状態時間を1秒減らす
+
+        if self.hyper_life < 0: # 残りの無敵状態時間が0秒だったら
+            self.state == "normal" # プレイヤーを通常状態にする
+            self.image.fill((255, 255, 255)) # プレイヤーの色を元に戻す
+
+
     def update(self, key_lst: dict):
         """
         Playerの更新を行う
@@ -115,6 +143,7 @@ class Player(pg.sprite.Sprite):
         elif self.vel[0] > self.__walk_vel_max:
             self.set_vel(self.__walk_vel_max)
         self.add_vel(vy=self.__acc[1])
+        self.check_hyper()
 
 class Block(pg.sprite.Sprite):
     """
@@ -239,6 +268,14 @@ class Level():
             self.blocks.add(Block((random.randint(*rangex), random.randint(*rangey)), (random.randint(self.min_obstacle_width, self.max_obstacle_width), random.randint(self.min_obstacle_height, self.max_obstacle_height))))
             dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)            
 
+class Enemy(pg.sprite.Sprite):
+    def __init__(self, pos):
+        super().__init__()
+        self.image = pg.Surface((64, 64))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
+
 def main():
     """
     ゲームループ
@@ -252,6 +289,9 @@ def main():
 
     player = Player(VIEW_POS)
     level = Level()
+    enemys = pg.sprite.Group()
+    enemys.add(Enemy((0, HEIGHT - 120)))
+    dynamic_rect_lst.append(enemys.sprites()[-1].rect)
 
     tmr = 0
     clock = pg.time.Clock()
@@ -259,6 +299,9 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
+            if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
+                # 右シフトキーが押されたら
+                player.change_state("hyper", 400)
         
         key_lst = pg.key.get_pressed()
 
@@ -314,11 +357,18 @@ def main():
                 player.set_vel(0)
             else:
                 player.set_vel(0.7 * player.vel[0])
+                
+        for enemy in pg.sprite.spritecollide(player, enemys, True):
+            if player.state == "hyper":
+                x = 1
+            else:
+                return
 
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
         level.blocks.draw(screen)
         screen.blit(player.image, player.rect)
+        enemys.draw(screen)
         pg.display.update()
 
         tmr += 1
