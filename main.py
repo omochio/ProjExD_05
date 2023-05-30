@@ -545,7 +545,7 @@ class Score:
         self.score += points
 
     def render(self, surface, pos):
-        print(self.progress)
+        #print(self.progress)
         score_surface = self.font.render("Score: " + str(self.score + self.progress), True, (255, 255, 255))
         surface.blit(score_surface, pos)
 
@@ -808,8 +808,8 @@ def main():
         pg.display.update()
 
         tmr += 1
+        score.progress = int(max(score.progress,abs(score.player_init_pos_x - level.blocks.sprites()[0].rect.centerx)/100))
         if tmr % 60 == 0:
-            score.progress = max(score.progress,abs(score.player_init_pos_x - player.rect.centerx))
             score.increase(1)
         clock.tick(60)
 
