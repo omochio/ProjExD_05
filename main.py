@@ -1,7 +1,6 @@
 import sys
 import random
 import pygame as pg
-import time
 
 WIDTH = 1600
 HEIGHT = 1000
@@ -409,6 +408,33 @@ class Throw_predict(pg.sprite.Sprite):
         self.vel[1] = vy
         self.vel[0] = vx
         
+class Enemy(pg.sprite.Sprite):  # エネミークラス
+    x = 400
+    y = 700
+    def __init__(self, center: tuple[int, int]):
+        global dynamic_rect_lst
+        super().__init__()
+        self.image = pg.Surface((64, 64))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_rect()
+        dynamic_rect_lst.append(self.rect)
+        self.rect.center = center
+        self.life = 0
+
+    def update(self):
+        global VIEW_POS
+        if self.life % 60 == 0 and 0 <= self.rect.centerx <= WIDTH:
+            self.throw_bomb()
+        self.life += 1
+        
+    def throw_bomb(self):
+        throw_arg = [0,0]
+        player_pos = list(VIEW_POS)
+        enemy_pos = list(self.rect.center)
+        throw_arg[0] = (player_pos[0] - enemy_pos[0])/10
+        throw_arg[1] = (player_pos[1] - enemy_pos[1])/15
+        Bomb(self.rect.center,tuple(throw_arg),power=2.0)
+
 class Level():
     """
     レベル生成と保持を担うクラス
@@ -418,6 +444,9 @@ class Level():
         self.blocks = pg.sprite.Group()
         self.__flcl_height = 100    # 床と天井の高さ
         self.__ceil_y = -HEIGHT // 2    # 天井の中心y座標
+        # 床
+        self.min_floor_width = 100
+        self.max_floor_width = WIDTH // 2
         # 天井の生成
         self.create_ceil((WIDTH // 2, self.__ceil_y))
         # 床の生成
@@ -426,23 +455,29 @@ class Level():
         self.__left_floor_rct = self.blocks.sprites()[-1].rect
         self.__right_floor_rct = self.blocks.sprites()[-1].rect
         
+        # 障害物
         self.min_obstacle_count = 50
         self.max_obstacle_count = 100
         self.min_obstacle_width = 50
         self.min_obstacle_height = 50
         self.max_obstacle_width = 100
         self.max_obstacle_height = 100
-        self.min_floor_width = 100
-        self.max_floor_width = WIDTH // 2
+
+        # 穴
         self.min_hole_width = 0
         self.max_hole_width = WIDTH // 2
+
+        # 敵
+        self.enemies = pg.sprite.Group()
+        self.min_enemy_count = 10
+        self.max_enemy_count = 20
 
     def update(self):
         """
         レベルの更新を行う
         """
         global WIDTH
-        # 左端の床のx座標が-WIDHT//2より大きくなったら床、天井、障害物を生成
+        # 左端の床のx座標が-WIDHT//2より大きくなったら生成
         if self.__left_floor_rct.left >= -WIDTH // 2:
             self.create_ceil((self.__left_floor_rct.left - WIDTH // 2, self.__ceil_rct.centery))
             prev_floor_rct = self.__left_floor_rct
@@ -460,7 +495,8 @@ class Level():
                 self.create_floor((self.__left_floor_rct.left - (offset + sizex // 2), self.__left_floor_rct.centery), (sizex, self.__flcl_height))
                 self.__left_floor_rct = self.blocks.sprites()[-1].rect
             self.create_obstacles((self.__left_floor_rct.left, prev_floor_rct.left), (self.__ceil_rct.bottom, self.__left_floor_rct.top))
-        # 右端の床のx座標がWIDHT * 3//2より小さくなったら床、天井、障害物を生成
+            self.create_enemies((self.__left_floor_rct.left, prev_floor_rct.left), (self.__ceil_rct.bottom, self.__left_floor_rct.top))
+        # 右端の床のx座標がWIDHT * 3//2より小さくなったら生成
         elif self.__right_floor_rct.right <= WIDTH * 3 // 2:
             self.create_ceil((self.__right_floor_rct.right + WIDTH // 2, self.__ceil_rct.centery))
             prev_floor_rct = self.__right_floor_rct
@@ -478,6 +514,7 @@ class Level():
                 self.create_floor((self.__right_floor_rct.right + (offset + sizex // 2), self.__right_floor_rct.centery), (sizex, self.__flcl_height))
                 self.__right_floor_rct = self.blocks.sprites()[-1].rect
             self.create_obstacles((prev_floor_rct.right, self.__right_floor_rct.right), (self.__ceil_rct.bottom, self.__right_floor_rct.top))
+            self.create_enemies((prev_floor_rct.right, self.__right_floor_rct.right), (self.__ceil_rct.bottom, self.__right_floor_rct.top))
 
     def create_ceil(self, ceil_center: tuple[int, int]):
         """
@@ -510,20 +547,14 @@ class Level():
             self.blocks.add(Block((random.randint(*rangex), random.randint(*rangey)), (random.randint(self.min_obstacle_width, self.max_obstacle_width), random.randint(self.min_obstacle_height, self.max_obstacle_height))))
             dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)   
 
-class Enemy(pg.sprite.Sprite):  # エネミークラス
-    x = 400
-    y = 700
-    def __init__(self, x, y):
-        global dynamic_rect_lst
-        super().__init__()
-        self.image = pg.Surface((64, 64))
-        self.image.fill((255, 0, 0))
-        self.rect = self.image.get_rect()
-        dynamic_rect_lst.append(self.rect)
-        self.rect.center = (x, y)
-
-    def update(self):
-        pass
+    def create_enemies(self, rangex: tuple[int, int], rangey: tuple[int, int]):
+        """
+        敵を生成する関数
+        rangex: x方向の生成範囲
+        rangey: y方向の範囲
+        """
+        for i in range(random.randint(self.min_enemy_count, self.max_enemy_count)):
+            self.enemies.add(Enemy((random.randint(*rangex), random.randint(*rangey))))
 
 class Score:
     """
@@ -534,30 +565,32 @@ class Score:
         self.score = 0
         self.kill_enemy = 0
         self.progress = 0
+        self.time = 0
         self.player_init_pos_x = 0
         self.final_score = 0
         self.font = pg.font.Font(None, 36)
         self.game_over_font = pg.font.Font(None, 50)
-            
+    
+    def modify(self):
+        self.score = self.kill_enemy * 100 + self.progress * 100 + self.time        
     def increase(self, points):
-        self.score += points
+        self.time += points
 
     def render(self, surface, pos):
-        print(self.progress)
-        score_surface = self.font.render("Score: " + str(self.score + self.progress), True, (255, 255, 255))
+        self.modify()
+        #print(self.progress)
+        score_surface = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
         surface.blit(score_surface, pos)
 
-    def render_final(self):
-        final_score_surface = self.font.render("GameOver!! \n Final Score: " + str(self.score), True, (255, 255, 255))
+    def render_final(self,surface):
+        self.modify()
+        final_score_surface = self.font.render(f"GameOver!!  Final Score: " + str(self.score), True, (255, 255, 255))
         restart_surface = self.font.render("Restart: press:'TAB' Quit: press:'ESC'", True, (255, 255, 255))
-        final_score_surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
-        restart_surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2))
-        for event in pg.event.get():
-            if event.type == pg.key.get_pressed:
-                if pg.key.get_pressed == pg.K_TAB:
-                    main()
-                elif pg.key.get_pressed == pg.K_ESCAPE:
-                    break
+        surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
+        # surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2 -150))
+        # restart_surface.blit(surface, (WIDTH / 2, HEIGHT / 2))
+        pg.display.update()
+
 
 def main():
     """
@@ -572,9 +605,6 @@ def main():
 
     player = Player(VIEW_POS)
     level = Level()
-    enemys = pg.sprite.Group()
-    for i in range(1):
-        enemys.add(Enemy(Enemy.x, Enemy.y))
     score = Score()
     score.player_init_pos_x = level.blocks.sprites()[0].rect.centerx
     
@@ -583,23 +613,31 @@ def main():
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
-                return 0
+                return
             if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
                 # 右シフトキーが押されたら
                 player.change_state("hyper", 400)
+        if level.blocks.sprites()[0].rect.bottom < -HEIGHT:
+            print(level.blocks.sprites()[0].rect.bottom)
+            score.render_final(screen)
+            pg.time.delay(3000)
+            return
         
         key_lst = pg.key.get_pressed()
 
         # 各スプライトの更新
         player.update(key_lst)
-        #Box
+        # Box
         Box.boxes.update()
-        #Bomb
+        # Bomb
         Bomb.bombs.update()
-        #Explode
+        # Explode
         Explode.explodes.update()
-        #predict
+        # predict
         Throw_predict.predicts.update()
+        # Enemy
+        level.enemies.update()
+        # Level
         level.update()
 
         # スクロール処理
@@ -634,7 +672,6 @@ def main():
                         box.rect.centerx = box.rect.centerx - gap
                         
                         box.vel[0] = 0
-
                 # y方向
                 else:
                     if box.vel[1] > 0:
@@ -673,7 +710,6 @@ def main():
                             break
                         else:
                             pass
-                            #obj2.is_ground = False
                             
                         #x軸方向の当たり判定
                         #print(id(obj),obj.is_ground)
@@ -701,8 +737,6 @@ def main():
                 power_border = 0.5
                 throw_arg[0] = -(key_pos[0] - item_pos[0])/power_border + 0.001
                 throw_arg[1] = -(key_pos[1] - item_pos[1])/power_border + 0.001
-                #print(throw_arg)
-                #if abs(thro
                 item.vel[0] += throw_arg[0]
                 item.vel[1] += throw_arg[1]
         
@@ -746,18 +780,16 @@ def main():
 
         #ExplodeとPlayerの当たり判定 あたると吹っ飛ぶ
         collide_lst = pg.sprite.spritecollide(player,Explode.explodes, False,False)
-        for explode in collide_lst:
-            
-            throw_arg = [0,0]
-            explode_pos = list(explode.rect.center)
-            player_pos = list(player.rect.center)
-            #print(explode_pos,player_pos)
-            power_border = 3
-            throw_arg[0] = -(explode_pos[0] - player_pos[0])/power_border + 0.001
-            throw_arg[1] = -(explode_pos[1] - player_pos[1])/power_border + 0.001
-            #print(throw_arg)
-            
-            player.add_vel(throw_arg[0],throw_arg[1])
+        if player.state != "hyper":
+            for explode in collide_lst:
+                throw_arg = [0,0]
+                explode_pos = list(explode.rect.center)
+                player_pos = list(player.rect.center)
+                power_border = 3
+                throw_arg[0] = -(explode_pos[0] - player_pos[0])/power_border + 0.001
+                throw_arg[1] = -(explode_pos[1] - player_pos[1])/power_border + 0.001
+                
+                player.add_vel(throw_arg[0],throw_arg[1])
             
 
         
@@ -785,28 +817,25 @@ def main():
                 player.set_vel(0)
             else:
                 player.set_vel(0.7 * player.vel[0])
-                
-        for enemy in pg.sprite.spritecollide(player, enemys, True):
-            if player.state == "hyper":
-                x = 1
-            else:
-                return
 
+        # Enemyの当たり判定
+        score.kill_enemy += len(pg.sprite.spritecollide(player, level.enemies, True))
+        
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
         level.blocks.draw(screen)
+        level.enemies.draw(screen)
         Box.boxes.draw(screen)
         Bomb.bombs.draw((screen))
         Explode.explodes.draw((screen))
         Throw_predict.predicts.draw((screen))
         screen.blit(player.image, player.rect)
-        enemys.draw(screen)
         score.render(screen, (WIDTH - 150, 10))
         pg.display.update()
 
         tmr += 1
+        score.progress = int(max(score.progress,abs(score.player_init_pos_x - level.blocks.sprites()[0].rect.centerx)/100))
         if tmr % 60 == 0:
-            score.progress = max(score.progress,abs(score.player_init_pos_x - player.rect.centerx))
             score.increase(1)
         clock.tick(60)
 
