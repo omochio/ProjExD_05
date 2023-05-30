@@ -1,6 +1,7 @@
 import sys
 import random
 import pygame as pg
+import time
 
 WIDTH = 1600
 HEIGHT = 1000
@@ -47,6 +48,8 @@ class Player(pg.sprite.Sprite):
         self.__walk_vel_max = 10
         self.__jump_init_vel = 20
         self.__is_grounded = False
+        self.state = "normal" # プレイヤーの状態
+        self.hyper_life = 0 # 残りの無敵状態時間
 
     @property
     def is_grounded(self) -> bool:
@@ -93,6 +96,31 @@ class Player(pg.sprite.Sprite):
         self.__vel[0] += vx
         self.__vel[1] += vy
 
+    def change_state(self, state: str, hyper_life: int):
+        """
+        右シフトキーが押された時に, プレイヤーを無敵状態にする関数
+        引数1 state : プレイヤーの状態
+        引数2 hyper_life : 無敵状態になっている時間
+        戻り値 : なし
+        """
+        self.state = state
+        self.hyper_life = hyper_life
+
+    def check_hyper(self):
+        """
+        プレイヤーが無敵状態かどうかを判定し, プレイヤーの色を変える
+        戻り値 : なし
+        """
+        if self.state == "hyper":
+            # プレイヤーが無敵状態だったら
+            self.image.fill((168, 88, 168)) # プレイヤーの色を紫にする
+            self.hyper_life += -1 # 残りの無敵状態時間を1秒減らす
+
+        if self.hyper_life < 0: # 残りの無敵状態時間が0秒だったら
+            self.state == "normal" # プレイヤーを通常状態にする
+            self.image.fill((255, 255, 255)) # プレイヤーの色を元に戻す
+
+
     def update(self, key_lst: dict):
         """
         Playerの更新を行う
@@ -125,6 +153,9 @@ class Player(pg.sprite.Sprite):
         elif self.vel[0] > self.__walk_vel_max:
             self.set_vel(self.__walk_vel_max)
         self.add_vel(vy=self.__acc[1])
+        
+        self.check_hyper()
+        
     
     def update_box(self,key_lst: dict):
         """
@@ -198,6 +229,7 @@ class Player(pg.sprite.Sprite):
             throw_arg[0] = (mouse_pos[0] - player_pos[0])/15
             throw_arg[1] = (mouse_pos[1] - player_pos[1])/15
             Throw_predict(self.rect.center,tuple(throw_arg),power=2.0)
+
 class Block(pg.sprite.Sprite):
     """
     初期生成されるブロックに関するクラス
@@ -478,7 +510,51 @@ class Level():
         """
         for i in range(random.randint(self.min_obstacle_count, self.max_obstacle_count)):
             self.blocks.add(Block((random.randint(*rangex), random.randint(*rangey)), (random.randint(self.min_obstacle_width, self.max_obstacle_width), random.randint(self.min_obstacle_height, self.max_obstacle_height))))
-            dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)            
+            dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)   
+
+
+class Score:
+    """
+    時間経過で増えていくスコアと
+    プレイヤー死亡時の最終スコアの表示
+    """
+    def __init__(self):
+        self.score = 0
+        self.kill_enemy = 0
+        self.progress = 0
+        self.player_init_pos_x = 0
+        self.final_score = 0
+        self.font = pg.font.Font(None, 36)
+        self.game_over_font = pg.font.Font(None, 50)
+            
+    def increase(self, points):
+        self.score += points
+
+    def render(self, surface, pos):
+        print(self.progress)
+        score_surface = self.font.render("Score: " + str(self.score + self.progress), True, (255, 255, 255))
+        surface.blit(score_surface, pos)
+
+    def render_final(self):
+        final_score_surface = self.font.render("GameOver!! \n Final Score: " + str(self.score), True, (255, 255, 255))
+        restart_surface = self.font.render("Restart: press:'TAB' Quit: press:'ESC'", True, (255, 255, 255))
+        final_score_surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
+        restart_surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2))
+        for event in pg.event.get():
+            if event.type == pg.key.get_pressed:
+                if pg.key.get_pressed == pg.K_TAB:
+                    main()
+                elif pg.key.get_pressed == pg.K_ESCAPE:
+                    break
+
+
+class Enemy(pg.sprite.Sprite):
+    def __init__(self, pos):
+        super().__init__()
+        self.image = pg.Surface((64, 64))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.center = pos
 
 def main():
     """
@@ -493,13 +569,22 @@ def main():
 
     player = Player(VIEW_POS)
     level = Level()
+    enemys = pg.sprite.Group()
+    enemys.add(Enemy((0, HEIGHT - 120)))
+    dynamic_rect_lst.append(enemys.sprites()[-1].rect)
 
+    score = Score()
+    score.player_init_pos_x = level.blocks.sprites()[0].rect.centerx
+    
     tmr = 0
     clock = pg.time.Clock()
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return 0
+            if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
+                # 右シフトキーが押されたら
+                player.change_state("hyper", 400)
         
         key_lst = pg.key.get_pressed()
 
@@ -698,6 +783,12 @@ def main():
                 player.set_vel(0)
             else:
                 player.set_vel(0.7 * player.vel[0])
+                
+        for enemy in pg.sprite.spritecollide(player, enemys, True):
+            if player.state == "hyper":
+                x = 1
+            else:
+                return
 
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
@@ -707,9 +798,14 @@ def main():
         Explode.explodes.draw((screen))
         Throw_predict.predicts.draw((screen))
         screen.blit(player.image, player.rect)
+        enemys.draw(screen)
+        score.render(screen, (WIDTH - 150, 10))
         pg.display.update()
 
         tmr += 1
+        if tmr % 60 == 0:
+            score.progress = max(score.progress,abs(score.player_init_pos_x - player.rect.centerx))
+            score.increase(1)
         clock.tick(60)
 
 if __name__ == "__main__":
