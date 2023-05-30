@@ -422,13 +422,12 @@ class Enemy(pg.sprite.Sprite):  # エネミークラス
         self.life = 0
 
     def update(self):
-        if self.life % 60 == 0:
+        global VIEW_POS
+        if self.life % 60 == 0 and 0 <= self.rect.centerx <= WIDTH:
             self.throw_bomb()
-        
         self.life += 1
         
     def throw_bomb(self):
-        
         throw_arg = [0,0]
         player_pos = list(VIEW_POS)
         enemy_pos = list(self.rect.center)
@@ -573,7 +572,7 @@ class Score:
         self.game_over_font = pg.font.Font(None, 50)
     
     def modify(self):
-        self.score = self.kill_enemy + self.progress + self.time        
+        self.score = self.kill_enemy * 100 + self.progress * 100 + self.time        
     def increase(self, points):
         self.time += points
 
@@ -588,8 +587,8 @@ class Score:
         final_score_surface = self.font.render(f"GameOver!!  Final Score: " + str(self.score), True, (255, 255, 255))
         restart_surface = self.font.render("Restart: press:'TAB' Quit: press:'ESC'", True, (255, 255, 255))
         surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
-        surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2 -150))
-        restart_surface.blit(surface, (WIDTH / 2, HEIGHT / 2))
+        # surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2 -150))
+        # restart_surface.blit(surface, (WIDTH / 2, HEIGHT / 2))
         pg.display.update()
 
 
@@ -614,10 +613,15 @@ def main():
     while True:
         for event in pg.event.get():
             if event.type == pg.QUIT:
-                return 0
+                return
             if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
                 # 右シフトキーが押されたら
                 player.change_state("hyper", 400)
+        if level.blocks.sprites()[0].rect.bottom < -HEIGHT:
+            print(level.blocks.sprites()[0].rect.bottom)
+            score.render_final(screen)
+            pg.time.delay(3000)
+            return
         
         key_lst = pg.key.get_pressed()
 
@@ -706,7 +710,6 @@ def main():
                             break
                         else:
                             pass
-                            #obj2.is_ground = False
                             
                         #x軸方向の当たり判定
                         #print(id(obj),obj.is_ground)
@@ -734,8 +737,6 @@ def main():
                 power_border = 0.5
                 throw_arg[0] = -(key_pos[0] - item_pos[0])/power_border + 0.001
                 throw_arg[1] = -(key_pos[1] - item_pos[1])/power_border + 0.001
-                #print(throw_arg)
-                #if abs(thro
                 item.vel[0] += throw_arg[0]
                 item.vel[1] += throw_arg[1]
         
@@ -779,16 +780,16 @@ def main():
 
         #ExplodeとPlayerの当たり判定 あたると吹っ飛ぶ
         collide_lst = pg.sprite.spritecollide(player,Explode.explodes, False,False)
-        for explode in collide_lst:
-            
-            throw_arg = [0,0]
-            explode_pos = list(explode.rect.center)
-            player_pos = list(player.rect.center)
-            power_border = 3
-            throw_arg[0] = -(explode_pos[0] - player_pos[0])/power_border + 0.001
-            throw_arg[1] = -(explode_pos[1] - player_pos[1])/power_border + 0.001
-            
-            player.add_vel(throw_arg[0],throw_arg[1])
+        if player.state != "hyper":
+            for explode in collide_lst:
+                throw_arg = [0,0]
+                explode_pos = list(explode.rect.center)
+                player_pos = list(player.rect.center)
+                power_border = 3
+                throw_arg[0] = -(explode_pos[0] - player_pos[0])/power_border + 0.001
+                throw_arg[1] = -(explode_pos[1] - player_pos[1])/power_border + 0.001
+                
+                player.add_vel(throw_arg[0],throw_arg[1])
             
 
         
@@ -816,13 +817,10 @@ def main():
                 player.set_vel(0)
             else:
                 player.set_vel(0.7 * player.vel[0])
-                
-        for enemy in pg.sprite.spritecollide(player, level.enemies, True):
-            if player.state == "hyper":
-                pass
-            else:
-                score.render_final(screen)
 
+        # Enemyの当たり判定
+        score.kill_enemy += len(pg.sprite.spritecollide(player, level.enemies, True))
+        
         # 各種描画処理
         screen.blit(bg_img, (0, 0))
         level.blocks.draw(screen)
