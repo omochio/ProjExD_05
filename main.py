@@ -1,6 +1,5 @@
 import sys
 import random
-from flask.views import View
 import pygame as pg
 
 WIDTH = 1600
