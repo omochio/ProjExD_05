@@ -373,7 +373,6 @@ class Explode(pg.sprite.Sprite):
         if self.life > 12:
             self.kill()
           
-
 class Throw_predict(pg.sprite.Sprite):
     """
     playerがなげるものの予測線Classです
@@ -410,7 +409,6 @@ class Throw_predict(pg.sprite.Sprite):
         self.vel[1] = vy
         self.vel[0] = vx
         
-
 class Level():
     """
     レベル生成と保持を担うクラス
@@ -560,7 +558,6 @@ class Score:
                     main()
                 elif pg.key.get_pressed == pg.K_ESCAPE:
                     break
-
 
 def main():
     """
