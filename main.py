@@ -237,7 +237,40 @@ class Level():
         """
         for i in range(random.randint(self.min_obstacle_count, self.max_obstacle_count)):
             self.blocks.add(Block((random.randint(*rangex), random.randint(*rangey)), (random.randint(self.min_obstacle_width, self.max_obstacle_width), random.randint(self.min_obstacle_height, self.max_obstacle_height))))
-            dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)            
+            dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)   
+
+
+class Score:
+    """
+    時間経過で増えていくスコアと
+    プレイヤー死亡時の最終スコアの表示
+    """
+    def __init__(self):
+        self.score = 0
+        self.final_score = 0
+        self.font = pg.font.Font(None, 36)
+        self.game_over_font = pg.font.Font(None, 50)
+        
+
+    def increase(self, points):
+        self.score += points
+
+    def render(self, surface, pos):
+        score_surface = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
+        surface.blit(score_surface, pos)
+
+    def render_final(self):
+        final_score_surface = self.font.render("GameOver!! \n Final Score: " + str(self.score), True, (255, 255, 255))
+        restart_surface = self.font.render("Restart: press:'TAB' Quit: press:'ESC'", True, (255, 255, 255))
+        final_score_surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
+        restart_surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2))
+        for event in pg.event.get():
+            if event.type == pg.key.get_pressed:
+                if pg.key.get_pressed == pg.K_TAB:
+                    main()
+                elif pg.key.get_pressed == pg.K_ESCAPE:
+                    break
+
 
 def main():
     """
@@ -252,6 +285,8 @@ def main():
 
     player = Player(VIEW_POS)
     level = Level()
+
+    score = Score()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -319,9 +354,12 @@ def main():
         screen.blit(bg_img, (0, 0))
         level.blocks.draw(screen)
         screen.blit(player.image, player.rect)
+        score.render(screen, (WIDTH - 150, 10))
         pg.display.update()
 
         tmr += 1
+        if tmr % 60 == 0:
+            score.increase(1)
         clock.tick(60)
 
 if __name__ == "__main__":
