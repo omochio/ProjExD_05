@@ -779,7 +779,7 @@ def main():
                     player.set_vel(vy=0)
 
         #ExplodeとPlayerの当たり判定 あたると吹っ飛ぶ
-        collide_lst = pg.sprite.spritecollide(player,Explode.explodes, False,False)
+        collide_lst = pg.sprite.spritecollide(player,Explode.explodes, False)
         if player.state != "hyper":
             for explode in collide_lst:
                 throw_arg = [0,0]
