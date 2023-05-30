@@ -120,23 +120,21 @@ class Block(pg.sprite.Sprite):
     """
     初期生成されるブロックに関するクラス
     """
-
     def __init__(self, center: tuple[int, int], size: tuple[int, int]):
         super().__init__()
-        self.size = size
+        self.__size = size
         self.image = pg.Surface(size)
         self.image.fill((127, 127, 127))
         self.rect = self.image.get_rect()
         self.rect.center = center
 
-    @classmethod
     @property
-    def size(cls) -> tuple[int, int]:
+    def size(self) -> tuple[int, int]:
         """
         サイズのgetter
         返り値: サイズのタプル
         """
-        return cls.__size
+        return self.__size
 
 class Level():
     """
@@ -246,7 +244,7 @@ def main():
     ゲームループ
     """
     global dynamic_rect_lst
-    pg.display.set_caption("ツミツミ(仮称)")
+    pg.display.set_caption("ハコツミツミ(仮称)")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
 
     bg_img = pg.Surface((WIDTH, HEIGHT))
