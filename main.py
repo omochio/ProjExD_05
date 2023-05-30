@@ -268,6 +268,20 @@ class Level():
             self.blocks.add(Block((random.randint(*rangex), random.randint(*rangey)), (random.randint(self.min_obstacle_width, self.max_obstacle_width), random.randint(self.min_obstacle_height, self.max_obstacle_height))))
             dynamic_rect_lst.append(self.blocks.sprites()[-1].rect)   
 
+class Enemy(pg.sprite.Sprite):  # エネミークラス
+    x = 400
+    y = 700
+    def __init__(self, x, y):
+        global dynamic_rect_lst
+        super().__init__()
+        self.image = pg.Surface((64, 64))
+        self.image.fill((255, 0, 0))
+        self.rect = self.image.get_rect()
+        dynamic_rect_lst.append(self.rect)
+        self.rect.center = (x, y)
+
+    def update(self):
+        pass
 
 class Score:
     """
@@ -301,14 +315,6 @@ class Score:
                     break
 
 
-class Enemy(pg.sprite.Sprite):
-    def __init__(self, pos):
-        super().__init__()
-        self.image = pg.Surface((64, 64))
-        self.image.fill((255, 0, 0))
-        self.rect = self.image.get_rect()
-        self.rect.center = pos
-
 def main():
     """
     ゲームループ
@@ -323,9 +329,8 @@ def main():
     player = Player(VIEW_POS)
     level = Level()
     enemys = pg.sprite.Group()
-    enemys.add(Enemy((0, HEIGHT - 120)))
-    dynamic_rect_lst.append(enemys.sprites()[-1].rect)
-
+    for i in range(1):
+        enemys.add(Enemy(Enemy.x, Enemy.y))
     score = Score()
 
     tmr = 0
