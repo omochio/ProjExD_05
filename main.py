@@ -21,6 +21,7 @@ class Player(pg.sprite.Sprite):
         pg.K_RIGHT: (1, 0),
         pg.K_d: (1, 0),
         pg.K_UP: (0, -1),
+        pg.K_w: (0, -1),
         pg.K_SPACE: (0, -1)
     }
 
