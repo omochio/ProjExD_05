@@ -626,6 +626,12 @@ def main():
     score = Score()
     score.player_init_pos_x = level.blocks.sprites()[0].rect.centerx
     
+    # BGM再生
+    pg.mixer.init()
+    pg.mixer.music.load("Audio/GamePlayBGM.mp3")
+    pg.mixer.music.play(-1)
+
+    is_bgm_switched = False
     tmr = 0
     clock = pg.time.Clock()
     while True:
@@ -637,8 +643,15 @@ def main():
                 player.change_state("hyper", 400)
         if level.blocks.sprites()[0].rect.bottom < -HEIGHT:
             score.render_final(screen)
+            if not is_bgm_switched:
+                pg.mixer.Sound("Audio/GameOverSE.mp3").play()
+                pg.mixer.music.stop()
+                pg.mixer.music.load("Audio/GameOverBGM.mp3")
+                pg.mixer.music.play(-1)
+                is_bgm_switched = True
             pg.display.update()
             continue
+
         
         key_lst = pg.key.get_pressed()
 
