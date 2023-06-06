@@ -208,7 +208,7 @@ class Player(pg.sprite.Sprite):
         """        
         pg.event.get()
         #CTRLで予測線
-        if (key_lst[pg.K_RCTRL]):
+        if (key_lst[pg.K_RCTRL] or key_lst[pg.K_LCTRL]):
             if not self.is_pre_predict:
                 self.is_predict = not self.is_predict
                 self.is_pre_predict = True
@@ -591,8 +591,24 @@ class Score:
         rcts[1].center = (WIDTH // 2, HEIGHT // 2 + self.game_over_font.get_height() // 2)
         for s, r in zip(final_score_surfaces, rcts):
             surface.blit(s, r)
-        pg.display.update()
 
+def render_guide(screen: pg.Surface):
+    font = pg.font.Font(None, 64)
+    guide_surfaces = [
+        font.render("A: Left", True, (255, 255, 255)),
+        font.render("D: Right", True, (255, 255, 255)),
+        font.render("W: Jump", True, (255, 255, 255)),
+        font.render("LClick: Box", True, (255, 255, 255)),
+        font.render("RClick: Bomb", True, (255, 255, 255)),
+        font.render("Shift: Hyper", True, (255, 255, 255)),
+        font.render("Ctrl: Ballistic", True, (255, 255, 255))
+    ]
+    rcts = [s.get_rect() for s in guide_surfaces]
+    for i, r in enumerate(rcts):
+        r.left = 0
+        r.bottom = HEIGHT - (len(rcts) - 1 - i) * font.get_height()
+    for s, r in zip(guide_surfaces, rcts):
+        screen.blit(s, r)
 
 def main():
     """
@@ -616,11 +632,12 @@ def main():
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 return
-            if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
-                # 右シフトキーが押されたら
+            if event.type == pg.KEYDOWN and (event.key == pg.K_LSHIFT or event.key == pg.K_RSHIFT):
+                # シフトキーが押されたら
                 player.change_state("hyper", 400)
         if level.blocks.sprites()[0].rect.bottom < -HEIGHT:
             score.render_final(screen)
+            pg.display.update()
             continue
         
         key_lst = pg.key.get_pressed()
@@ -739,11 +756,8 @@ def main():
                 item.vel[0] += throw_arg[0]
                 item.vel[1] += throw_arg[1]
         
-        
-    
         #予測線の接地判定
         collide_lst = pg.sprite.groupcollide(Throw_predict.predicts, level.blocks, True,False)
-        
         
         # ブロックとの衝突判定
         collide_lst = pg.sprite.spritecollide(player, level.blocks, False)
@@ -789,8 +803,6 @@ def main():
                 throw_arg[1] = -(explode_pos[1] - player_pos[1])/power_border + 0.001
                 
                 player.add_vel(throw_arg[0],throw_arg[1])
-            
-
         
         #BoxにPlayerが乗るための接地判定
         collide_lst = pg.sprite.spritecollide(player, Box.boxes, False)
@@ -830,6 +842,7 @@ def main():
         Throw_predict.predicts.draw((screen))
         screen.blit(player.image, player.rect)
         score.render(screen)
+        render_guide(screen)
         pg.display.update()
 
         tmr += 1
