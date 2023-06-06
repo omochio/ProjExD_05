@@ -569,27 +569,30 @@ class Score:
         self.time = 0
         self.player_init_pos_x = 0
         self.final_score = 0
-        self.font = pg.font.Font(None, 36)
-        self.game_over_font = pg.font.Font(None, 50)
+        self.font = pg.font.Font(None, 100)
+        self.game_over_font = pg.font.Font(None, 200)
     
     def modify(self):
         self.score = self.kill_enemy * 100 + self.progress * 100 + self.time        
     def increase(self, points):
         self.time += points
 
-    def render(self, surface, pos):
+    def render(self, surface):
         self.modify()
-        #print(self.progress)
         score_surface = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
-        surface.blit(score_surface, pos)
+        surface.blit(score_surface, (0, 0))
 
     def render_final(self,surface):
         self.modify()
-        final_score_surface = self.font.render(f"GameOver!!  Final Score: " + str(self.score), True, (255, 255, 255))
-        restart_surface = self.font.render("Restart: press:'TAB' Quit: press:'ESC'", True, (255, 255, 255))
-        surface.blit(final_score_surface, (WIDTH / 2, HEIGHT / 2 -50))
-        # surface.blit(restart_surface, (WIDTH / 2, HEIGHT / 2 -150))
-        # restart_surface.blit(surface, (WIDTH / 2, HEIGHT / 2))
+        final_score_surfaces = [
+            self.game_over_font.render(f"GameOver!!", True, (255, 0, 0)),
+            self.game_over_font.render(f"Final Score: {self.score}", True, (255, 255, 255))
+        ]
+        rcts = [s.get_rect() for s in final_score_surfaces]
+        rcts[0].center = (WIDTH // 2, HEIGHT // 2 - self.game_over_font.get_height() // 2)
+        rcts[1].center = (WIDTH // 2, HEIGHT // 2 + self.game_over_font.get_height() // 2)
+        for s, r in zip(final_score_surfaces, rcts):
+            surface.blit(s, r)
         pg.display.update()
 
 
@@ -831,7 +834,7 @@ def main():
         Explode.explodes.draw((screen))
         Throw_predict.predicts.draw((screen))
         screen.blit(player.image, player.rect)
-        score.render(screen, (WIDTH - 150, 10))
+        score.render(screen)
         pg.display.update()
 
         tmr += 1
