@@ -116,9 +116,9 @@ class Player(pg.sprite.Sprite):
             self.image.fill((168, 88, 168)) # プレイヤーの色を紫にする
             self.hyper_life += -1 # 残りの無敵状態時間を1秒減らす
 
-        if self.hyper_life < 0: # 残りの無敵状態時間が0秒だったら
-            self.state == "normal" # プレイヤーを通常状態にする
-            self.image.fill((255, 255, 255)) # プレイヤーの色を元に戻す
+            if self.hyper_life < 0: # 残りの無敵状態時間が0秒だったら
+                self.state = "normal" # プレイヤーを通常状態にする
+                self.image.fill((255, 255, 255)) # プレイヤーの色を元に戻す
 
 
     def update(self, key_lst: dict):
