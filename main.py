@@ -206,8 +206,6 @@ class Player(pg.sprite.Sprite):
         Press Shift
         draw throw curve 
         """        
-        
-        
         pg.event.get()
         #CTRLで予測線
         if (key_lst[pg.K_RCTRL]):
@@ -569,7 +567,7 @@ class Score:
         self.time = 0
         self.player_init_pos_x = 0
         self.final_score = 0
-        self.font = pg.font.Font(None, 100)
+        self.score_font = pg.font.Font(None, 100)
         self.game_over_font = pg.font.Font(None, 200)
     
     def modify(self):
@@ -579,14 +577,14 @@ class Score:
 
     def render(self, surface):
         self.modify()
-        score_surface = self.font.render("Score: " + str(self.score), True, (255, 255, 255))
+        score_surface = self.score_font.render("Score: " + str(self.score), True, (255, 255, 255))
         surface.blit(score_surface, (0, 0))
 
     def render_final(self,surface):
         self.modify()
         final_score_surfaces = [
             self.game_over_font.render(f"GameOver!!", True, (255, 0, 0)),
-            self.game_over_font.render(f"Final Score: {self.score}", True, (255, 255, 255))
+            self.game_over_font.render(f"Result: {self.score}", True, (255, 255, 255))
         ]
         rcts = [s.get_rect() for s in final_score_surfaces]
         rcts[0].center = (WIDTH // 2, HEIGHT // 2 - self.game_over_font.get_height() // 2)
@@ -622,10 +620,8 @@ def main():
                 # 右シフトキーが押されたら
                 player.change_state("hyper", 400)
         if level.blocks.sprites()[0].rect.bottom < -HEIGHT:
-            print(level.blocks.sprites()[0].rect.bottom)
             score.render_final(screen)
-            pg.time.delay(3000)
-            return
+            continue
         
         key_lst = pg.key.get_pressed()
 
@@ -716,7 +712,6 @@ def main():
                             pass
                             
                         #x軸方向の当たり判定
-                        #print(id(obj),obj.is_ground)
                         if not obj.is_ground:
                             if obj2.rect.centerx > obj.rect.right > obj2.rect.left and obj.vel[0] > 0 and abs(obj.vel[1]) > abs(obj.vel[0]):
                                 obj.rect.centerx -= (obj.rect.right - obj2.rect.left) 
