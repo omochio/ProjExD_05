@@ -14,7 +14,7 @@
 - キーボード
   - A or Light: 左移動
   - D or Right: 右移動
-  - Space or Up: ジャンプ
+  - W or Space or Up: ジャンプ
   - Shift: 無敵
     - 爆風の影響を受けなくなる
   - Ctrl: 予測線表示
